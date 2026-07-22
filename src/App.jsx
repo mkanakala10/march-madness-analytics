@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, TrendingUp, BarChart2, ShieldAlert, Settings, HelpCircle, RefreshCw } from 'lucide-react';
+import { Play, TrendingUp, BarChart2, ShieldAlert, Settings, HelpCircle, RefreshCw, X, Award, CheckCircle } from 'lucide-react';
 import { predictMatchup } from './predictor.js';
 
 // Import JSON data directly (handled out-of-the-box by Vite)
@@ -22,35 +22,84 @@ const featureDescriptions = {
   "EXP": "Average experience of players on the roster (in years)."
 };
 
+// Simulation Helper
+function simulateRound(matchups, modelType, modelsData, statsMap) {
+  const results = [];
+  const winners = [];
+
+  matchups.forEach((match, index) => {
+    const t1 = match.TEAM1;
+    const t2 = match.TEAM2;
+    const t1Stats = statsMap[t1] || { TEAM: t1, SEED: 16, WAB: 0, "FT%": 70, "CONSISTENCY TR RATING": 10, EXP: 2, "BADJ EM": 0, "TR RANK": 150, BARTHAG: 0.5, LAST: 150, "AST%": 50 };
+    const stats2 = statsMap[t2] || { TEAM: t2, SEED: 16, WAB: 0, "FT%": 70, "CONSISTENCY TR RATING": 10, EXP: 2, "BADJ EM": 0, "TR RANK": 150, BARTHAG: 0.5, LAST: 150, "AST%": 50 };
+
+    const pred = predictMatchup(modelType, modelsData, t1Stats, stats2);
+
+    results.push({
+      TEAM1: t1,
+      TEAM2: t2,
+      WINNER: pred.winner === 1 ? t1 : t2,
+      TEAM1_PROB: pred.team1Prob,
+      TEAM2_PROB: pred.team2Prob,
+      SEED1: t1Stats.SEED,
+      SEED2: stats2.SEED
+    });
+
+    winners.push(pred.winner === 1 ? t1 : t2);
+  });
+
+  const nextMatchups = [];
+  for (let i = 0; i < winners.length; i += 2) {
+    if (i + 1 < winners.length) {
+      nextMatchups.push({
+        TEAM1: winners[i],
+        TEAM2: winners[i+1],
+        MATCHUP_ID: i / 2
+      });
+    }
+  }
+
+  return { results, nextMatchups };
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('predictor'); // 'predictor' | 'bracket' | 'insights'
   const [modelType, setModelType] = useState('random_forest'); // 'random_forest' | 'decision_tree' | 'logistic_regression'
 
+  // Global Team Stats State (initialized from 2025 dataset)
+  const [globalStatsMap, setGlobalStatsMap] = useState({});
+
   // Predictor State
-  const [team1Source, setTeam1Source] = useState('2025'); // '2025' | 'historical'
-  const [team2Source, setTeam2Source] = useState('2025'); // '2025' | 'historical'
   const [selectedTeam1Key, setSelectedTeam1Key] = useState('');
   const [selectedTeam2Key, setSelectedTeam2Key] = useState('');
-  
   const [team1Stats, setTeam1Stats] = useState(null);
   const [team2Stats, setTeam2Stats] = useState(null);
   const [prediction, setPrediction] = useState(null);
 
-  // Combine 2025 and historical lists for selectors
-  const historicalOptions = teamsHistorical.map(t => ({
-    key: `hist-${t.YEAR}-${t.TEAM}`,
-    label: `${t.TEAM} (${t.YEAR})`,
-    stats: t
-  }));
+  // Bracket State
+  const [bracketSimulated, setBracketSimulated] = useState(false);
+  const [roundsResults, setRoundsResults] = useState({
+    r64: [],
+    r32: [],
+    s16: [],
+    e8: [],
+    f4: [],
+    champ: [],
+    champion: ''
+  });
 
-  const options2025 = teams2025.map(t => ({
-    key: `2025-${t.TEAM}`,
-    label: `${t.TEAM} (2025)`,
-    stats: t
-  }));
+  // Sidebar Stats Editor State
+  const [editingTeamName, setEditingTeamName] = useState(null); // String name of team being edited
+  const [editingStats, setEditingStats] = useState(null);
 
-  // Initial setup of default teams
+  // Initial setup of stats map and default selector teams
   useEffect(() => {
+    const statsMap = {};
+    teams2025.forEach(t => {
+      statsMap[t.TEAM] = { ...t };
+    });
+    setGlobalStatsMap(statsMap);
+
     // Default Team 1: Auburn (2025), Team 2: Alabama (2025)
     const defT1 = teams2025.find(t => t.TEAM === 'Auburn') || teams2025[0];
     const defT2 = teams2025.find(t => t.TEAM === 'Alabama') || teams2025[1];
@@ -65,7 +114,7 @@ function App() {
     }
   }, []);
 
-  // Update predictions whenever stats or model changes
+  // Update predictions whenever stats or model changes in Predictor tab
   useEffect(() => {
     if (team1Stats && team2Stats) {
       const res = predictMatchup(modelType, modelsData, team1Stats, team2Stats);
@@ -73,12 +122,26 @@ function App() {
     }
   }, [team1Stats, team2Stats, modelType]);
 
-  // Handle dropdown selection change
+  // Combine 2025 and historical lists for selectors
+  const historicalOptions = teamsHistorical.map(t => ({
+    key: `hist-${t.YEAR}-${t.TEAM}`,
+    label: `${t.TEAM} (${t.YEAR})`,
+    stats: t
+  }));
+
+  const options2025 = teams2025.map(t => ({
+    key: `2025-${t.TEAM}`,
+    label: `${t.TEAM} (2025)`,
+    stats: t
+  }));
+
+  // Handle dropdown selection change in Predictor
   const handleTeamChange = (teamNum, key) => {
     let selectedStats = null;
     if (key.startsWith('2025-')) {
       const teamName = key.replace('2025-', '');
-      selectedStats = teams2025.find(t => t.TEAM === teamName);
+      // Use stats from globalStatsMap in case they were edited
+      selectedStats = globalStatsMap[teamName] || teams2025.find(t => t.TEAM === teamName);
     } else {
       const match = key.match(/^hist-(\d+)-(.*)$/);
       if (match) {
@@ -99,20 +162,145 @@ function App() {
     }
   };
 
-  // Handle slider changes
+  // Handle slider changes in Predictor
   const handleStatChange = (teamNum, feature, val) => {
     const numericVal = parseFloat(val);
     if (teamNum === 1) {
       setTeam1Stats(prev => ({ ...prev, [feature]: numericVal }));
+      // Sync back to globalStatsMap if it's a 2025 team
+      if (selectedTeam1Key.startsWith('2025-')) {
+        const name = selectedTeam1Key.replace('2025-', '');
+        setGlobalStatsMap(prev => ({
+          ...prev,
+          [name]: { ...prev[name], [feature]: numericVal }
+        }));
+      }
     } else {
       setTeam2Stats(prev => ({ ...prev, [feature]: numericVal }));
+      // Sync back to globalStatsMap if it's a 2025 team
+      if (selectedTeam2Key.startsWith('2025-')) {
+        const name = selectedTeam2Key.replace('2025-', '');
+        setGlobalStatsMap(prev => ({
+          ...prev,
+          [name]: { ...prev[name], [feature]: numericVal }
+        }));
+      }
     }
   };
 
   // Reset a team's stats to original values
   const resetStats = (teamNum) => {
     const key = teamNum === 1 ? selectedTeam1Key : selectedTeam2Key;
-    handleTeamChange(teamNum, key);
+    let originalStats = null;
+    if (key.startsWith('2025-')) {
+      const teamName = key.replace('2025-', '');
+      originalStats = teams2025.find(t => t.TEAM === teamName);
+      if (originalStats) {
+        setGlobalStatsMap(prev => ({
+          ...prev,
+          [teamName]: { ...originalStats }
+        }));
+      }
+    } else {
+      const match = key.match(/^hist-(\d+)-(.*)$/);
+      if (match) {
+        const year = parseInt(match[1]);
+        const teamName = match[2];
+        originalStats = teamsHistorical.find(t => t.YEAR === year && t.TEAM === teamName);
+      }
+    }
+
+    if (originalStats) {
+      if (teamNum === 1) {
+        setTeam1Stats({ ...originalStats });
+      } else {
+        setTeam2Stats({ ...originalStats });
+      }
+    }
+  };
+
+  // Run full bracket simulation
+  const runBracketSimulation = () => {
+    // Round of 64
+    const r64Sim = simulateRound(matchups2025, modelType, modelsData, globalStatsMap);
+    
+    // Round of 32
+    const r32Sim = simulateRound(r64Sim.nextMatchups, modelType, modelsData, globalStatsMap);
+    
+    // Sweet 16
+    const s16Sim = simulateRound(r32Sim.nextMatchups, modelType, modelsData, globalStatsMap);
+    
+    // Elite 8
+    const e8Sim = simulateRound(s16Sim.nextMatchups, modelType, modelsData, globalStatsMap);
+    
+    // Final Four
+    const f4Sim = simulateRound(e8Sim.nextMatchups, modelType, modelsData, globalStatsMap);
+    
+    // Championship
+    const champSim = simulateRound(f4Sim.nextMatchups, modelType, modelsData, globalStatsMap);
+
+    const champRes = champSim.results[0];
+    const finalChampion = champRes ? champRes.WINNER : '';
+
+    setRoundsResults({
+      r64: r64Sim.results,
+      r32: r32Sim.results,
+      s16: s16Sim.results,
+      e8: e8Sim.results,
+      f4: f4Sim.results,
+      champ: champSim.results,
+      champion: finalChampion
+    });
+    setBracketSimulated(true);
+  };
+
+  // Open the sidebar editor for a clicked team in the bracket
+  const openTeamEditor = (teamName) => {
+    const stats = globalStatsMap[teamName];
+    if (stats) {
+      setEditingTeamName(teamName);
+      setEditingStats({ ...stats });
+    }
+  };
+
+  // Handle slider edits in the Sidebar
+  const handleSidebarStatChange = (feature, val) => {
+    const numericVal = parseFloat(val);
+    setEditingStats(prev => ({ ...prev, [feature]: numericVal }));
+  };
+
+  // Save edits in the sidebar and re-run prediction/simulation
+  const saveSidebarEdits = () => {
+    setGlobalStatsMap(prev => ({
+      ...prev,
+      [editingTeamName]: { ...editingStats }
+    }));
+
+    // If this team is currently active in the Predictor tab, sync it
+    if (team1Stats && team1Stats.TEAM === editingTeamName) {
+      setTeam1Stats({ ...editingStats });
+    }
+    if (team2Stats && team2Stats.TEAM === editingTeamName) {
+      setTeam2Stats({ ...editingStats });
+    }
+
+    setEditingTeamName(null);
+    setEditingStats(null);
+
+    // Auto re-run simulation if it has already been run once
+    if (bracketSimulated) {
+      setTimeout(() => {
+        runBracketSimulation();
+      }, 50);
+    }
+  };
+
+  // Reset a team's stats to original values via the sidebar
+  const resetSidebarStats = () => {
+    const originalStats = teams2025.find(t => t.TEAM === editingTeamName);
+    if (originalStats) {
+      setEditingStats({ ...originalStats });
+    }
   };
 
   return (
@@ -138,9 +326,6 @@ function App() {
           <button 
             className={`tab-btn ${activeTab === 'bracket' ? 'active' : ''}`}
             onClick={() => setActiveTab('bracket')}
-            disabled
-            style={{ opacity: 0.5, cursor: 'not-allowed' }}
-            title="Coming soon in Step 8"
           >
             <Play size={16} /> Bracket Sim
           </button>
@@ -158,6 +343,7 @@ function App() {
 
       {/* Main Panel Content */}
       <main>
+        {/* Tab 1: Matchup Predictor */}
         {activeTab === 'predictor' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             
@@ -561,7 +747,401 @@ function App() {
             </div>
           </div>
         )}
+
+        {/* Tab 2: Bracket Simulator */}
+        {activeTab === 'bracket' && (
+          <div className="glass-panel" style={{ width: '100%' }}>
+            
+            {/* Controls */}
+            <div className="bracket-controls">
+              <div>
+                <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>2025 Bracket Simulator</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  Simulate the 2025 tournament using the <strong style={{ color: 'var(--color-primary)' }}>{modelType.replace('_', ' ')}</strong> model. Click any team name to adjust its stats!
+                </p>
+              </div>
+              <button 
+                className="sim-btn"
+                onClick={runBracketSimulation}
+              >
+                <RefreshCw size={16} /> Run Full Simulation
+              </button>
+            </div>
+
+            {/* Champion Header */}
+            {bracketSimulated && roundsResults.champion && (
+              <div className="champion-reveal-card">
+                <Award className="champion-trophy" />
+                <span className="winner-label" style={{ letterSpacing: '0.2em' }}>Predicted Champion</span>
+                <h2 style={{ fontSize: '2rem', color: '#FFF', fontFamily: 'var(--font-heading)', fontWeight: '800', marginTop: '0.5rem' }}>
+                  {roundsResults.champion}
+                </h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                  Click "Run Full Simulation" or tweak stats to see if a different champion emerges!
+                </p>
+              </div>
+            )}
+
+            {/* Interactive Bracket Columns */}
+            <div className="bracket-simulator-container">
+              <div className="bracket-rounds-wrapper">
+                
+                {/* Round of 64 */}
+                <div className="round-column">
+                  <div className="round-header-sticky">Round of 64</div>
+                  {bracketSimulated && roundsResults.r64.map((m, i) => (
+                    <div key={`r64-${i}`} className="bracket-matchup-node">
+                      <div 
+                        className={`bracket-team-row ${m.WINNER === m.TEAM1 ? 'winner-pred-1' : ''}`}
+                        onClick={() => openTeamEditor(m.TEAM1)}
+                      >
+                        <span className="bracket-team-name"><span className="bracket-team-seed">{m.SEED1}</span>{m.TEAM1}</span>
+                        <span className="bracket-team-score">{m.WINNER === m.TEAM1 ? 'W' : 'L'}</span>
+                      </div>
+                      <div 
+                        className={`bracket-team-row ${m.WINNER === m.TEAM2 ? 'winner-pred-2' : ''}`}
+                        onClick={() => openTeamEditor(m.TEAM2)}
+                      >
+                        <span className="bracket-team-name"><span className="bracket-team-seed">{m.SEED2}</span>{m.TEAM2}</span>
+                        <span className="bracket-team-score">{m.WINNER === m.TEAM2 ? 'W' : 'L'}</span>
+                      </div>
+                      <div className="bracket-match-prob">
+                        Prob: {(Math.max(m.TEAM1_PROB, m.TEAM2_PROB) * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  ))}
+                  {!bracketSimulated && matchups2025.map((m, i) => {
+                    const s1 = globalStatsMap[m.TEAM1]?.SEED || 16;
+                    const s2 = globalStatsMap[m.TEAM2]?.SEED || 16;
+                    return (
+                      <div key={`r64-init-${i}`} className="bracket-matchup-node">
+                        <div className="bracket-team-row" onClick={() => openTeamEditor(m.TEAM1)}>
+                          <span className="bracket-team-name"><span className="bracket-team-seed">{s1}</span>{m.TEAM1}</span>
+                        </div>
+                        <div className="bracket-team-row" onClick={() => openTeamEditor(m.TEAM2)}>
+                          <span className="bracket-team-name"><span className="bracket-team-seed">{s2}</span>{m.TEAM2}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Round of 32 */}
+                <div className="round-column">
+                  <div className="round-header-sticky">Round of 32</div>
+                  {bracketSimulated && roundsResults.r32.map((m, i) => (
+                    <div key={`r32-${i}`} className="bracket-matchup-node">
+                      <div 
+                        className={`bracket-team-row ${m.WINNER === m.TEAM1 ? 'winner-pred-1' : ''}`}
+                        onClick={() => openTeamEditor(m.TEAM1)}
+                      >
+                        <span className="bracket-team-name"><span className="bracket-team-seed">{m.SEED1}</span>{m.TEAM1}</span>
+                        <span className="bracket-team-score">{m.WINNER === m.TEAM1 ? 'W' : 'L'}</span>
+                      </div>
+                      <div 
+                        className={`bracket-team-row ${m.WINNER === m.TEAM2 ? 'winner-pred-2' : ''}`}
+                        onClick={() => openTeamEditor(m.TEAM2)}
+                      >
+                        <span className="bracket-team-name"><span className="bracket-team-seed">{m.SEED2}</span>{m.TEAM2}</span>
+                        <span className="bracket-team-score">{m.WINNER === m.TEAM2 ? 'W' : 'L'}</span>
+                      </div>
+                      <div className="bracket-match-prob">
+                        Prob: {(Math.max(m.TEAM1_PROB, m.TEAM2_PROB) * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  ))}
+                  {!bracketSimulated && Array.from({ length: 16 }).map((_, i) => (
+                    <div key={`r32-empty-${i}`} className="bracket-matchup-node" style={{ opacity: 0.25, borderStyle: 'dashed' }}>
+                      <div className="bracket-team-row">TBD</div>
+                      <div className="bracket-team-row">TBD</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Sweet 16 */}
+                <div className="round-column">
+                  <div className="round-header-sticky">Sweet 16</div>
+                  {bracketSimulated && roundsResults.s16.map((m, i) => (
+                    <div key={`s16-${i}`} className="bracket-matchup-node">
+                      <div 
+                        className={`bracket-team-row ${m.WINNER === m.TEAM1 ? 'winner-pred-1' : ''}`}
+                        onClick={() => openTeamEditor(m.TEAM1)}
+                      >
+                        <span className="bracket-team-name"><span className="bracket-team-seed">{m.SEED1}</span>{m.TEAM1}</span>
+                        <span className="bracket-team-score">{m.WINNER === m.TEAM1 ? 'W' : 'L'}</span>
+                      </div>
+                      <div 
+                        className={`bracket-team-row ${m.WINNER === m.TEAM2 ? 'winner-pred-2' : ''}`}
+                        onClick={() => openTeamEditor(m.TEAM2)}
+                      >
+                        <span className="bracket-team-name"><span className="bracket-team-seed">{m.SEED2}</span>{m.TEAM2}</span>
+                        <span className="bracket-team-score">{m.WINNER === m.TEAM2 ? 'W' : 'L'}</span>
+                      </div>
+                      <div className="bracket-match-prob">
+                        Prob: {(Math.max(m.TEAM1_PROB, m.TEAM2_PROB) * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  ))}
+                  {!bracketSimulated && Array.from({ length: 8 }).map((_, i) => (
+                    <div key={`s16-empty-${i}`} className="bracket-matchup-node" style={{ opacity: 0.25, borderStyle: 'dashed' }}>
+                      <div className="bracket-team-row">TBD</div>
+                      <div className="bracket-team-row">TBD</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Elite 8 */}
+                <div className="round-column">
+                  <div className="round-header-sticky">Elite 8</div>
+                  {bracketSimulated && roundsResults.e8.map((m, i) => (
+                    <div key={`e8-${i}`} className="bracket-matchup-node">
+                      <div 
+                        className={`bracket-team-row ${m.WINNER === m.TEAM1 ? 'winner-pred-1' : ''}`}
+                        onClick={() => openTeamEditor(m.TEAM1)}
+                      >
+                        <span className="bracket-team-name"><span className="bracket-team-seed">{m.SEED1}</span>{m.TEAM1}</span>
+                        <span className="bracket-team-score">{m.WINNER === m.TEAM1 ? 'W' : 'L'}</span>
+                      </div>
+                      <div 
+                        className={`bracket-team-row ${m.WINNER === m.TEAM2 ? 'winner-pred-2' : ''}`}
+                        onClick={() => openTeamEditor(m.TEAM2)}
+                      >
+                        <span className="bracket-team-name"><span className="bracket-team-seed">{m.SEED2}</span>{m.TEAM2}</span>
+                        <span className="bracket-team-score">{m.WINNER === m.TEAM2 ? 'W' : 'L'}</span>
+                      </div>
+                      <div className="bracket-match-prob">
+                        Prob: {(Math.max(m.TEAM1_PROB, m.TEAM2_PROB) * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  ))}
+                  {!bracketSimulated && Array.from({ length: 4 }).map((_, i) => (
+                    <div key={`e8-empty-${i}`} className="bracket-matchup-node" style={{ opacity: 0.25, borderStyle: 'dashed' }}>
+                      <div className="bracket-team-row">TBD</div>
+                      <div className="bracket-team-row">TBD</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Final Four */}
+                <div className="round-column">
+                  <div className="round-header-sticky">Final Four</div>
+                  {bracketSimulated && roundsResults.f4.map((m, i) => (
+                    <div key={`f4-${i}`} className="bracket-matchup-node">
+                      <div 
+                        className={`bracket-team-row ${m.WINNER === m.TEAM1 ? 'winner-pred-1' : ''}`}
+                        onClick={() => openTeamEditor(m.TEAM1)}
+                      >
+                        <span className="bracket-team-name"><span className="bracket-team-seed">{m.SEED1}</span>{m.TEAM1}</span>
+                        <span className="bracket-team-score">{m.WINNER === m.TEAM1 ? 'W' : 'L'}</span>
+                      </div>
+                      <div 
+                        className={`bracket-team-row ${m.WINNER === m.TEAM2 ? 'winner-pred-2' : ''}`}
+                        onClick={() => openTeamEditor(m.TEAM2)}
+                      >
+                        <span className="bracket-team-name"><span className="bracket-team-seed">{m.SEED2}</span>{m.TEAM2}</span>
+                        <span className="bracket-team-score">{m.WINNER === m.TEAM2 ? 'W' : 'L'}</span>
+                      </div>
+                      <div className="bracket-match-prob">
+                        Prob: {(Math.max(m.TEAM1_PROB, m.TEAM2_PROB) * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  ))}
+                  {!bracketSimulated && Array.from({ length: 2 }).map((_, i) => (
+                    <div key={`f4-empty-${i}`} className="bracket-matchup-node" style={{ opacity: 0.25, borderStyle: 'dashed' }}>
+                      <div className="bracket-team-row">TBD</div>
+                      <div className="bracket-team-row">TBD</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Championship */}
+                <div className="round-column">
+                  <div className="round-header-sticky">Championship</div>
+                  {bracketSimulated && roundsResults.champ.map((m, i) => (
+                    <div key={`champ-${i}`} className="bracket-matchup-node">
+                      <div 
+                        className={`bracket-team-row ${m.WINNER === m.TEAM1 ? 'winner-pred-1' : ''}`}
+                        onClick={() => openTeamEditor(m.TEAM1)}
+                      >
+                        <span className="bracket-team-name"><span className="bracket-team-seed">{m.SEED1}</span>{m.TEAM1}</span>
+                        <span className="bracket-team-score">{m.WINNER === m.TEAM1 ? 'W' : 'L'}</span>
+                      </div>
+                      <div 
+                        className={`bracket-team-row ${m.WINNER === m.TEAM2 ? 'winner-pred-2' : ''}`}
+                        onClick={() => openTeamEditor(m.TEAM2)}
+                      >
+                        <span className="bracket-team-name"><span className="bracket-team-seed">{m.SEED2}</span>{m.TEAM2}</span>
+                        <span className="bracket-team-score">{m.WINNER === m.TEAM2 ? 'W' : 'L'}</span>
+                      </div>
+                      <div className="bracket-match-prob">
+                        Prob: {(Math.max(m.TEAM1_PROB, m.TEAM2_PROB) * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  ))}
+                  {!bracketSimulated && (
+                    <div className="bracket-matchup-node" style={{ opacity: 0.25, borderStyle: 'dashed' }}>
+                      <div className="bracket-team-row">TBD</div>
+                      <div className="bracket-team-row">TBD</div>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          </div>
+        )}
       </main>
+
+      {/* Slide-out Sidebar for Bracket Editing */}
+      <div className={`sidebar-panel ${editingTeamName ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <div>
+            <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-heading)', color: 'var(--color-primary)' }}>
+              {editingTeamName}
+            </h3>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Edit team stats globally</span>
+          </div>
+          <button className="close-btn" onClick={() => { setEditingTeamName(null); setEditingStats(null); }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {editingStats && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', flex: 1, paddingBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="team-seed-badge" style={{ borderColor: 'var(--color-primary)' }}>Seed {editingStats.SEED}</span>
+              <button className="close-btn" style={{ fontSize: '0.8rem', gap: '0.25rem' }} onClick={resetSidebarStats}>
+                <RefreshCw size={12} /> Reset Original
+              </button>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" title={featureDescriptions["WAB"]}>
+                <span>Wins Above Bubble (WAB)</span>
+                <span className="form-value">{editingStats.WAB.toFixed(1)}</span>
+              </label>
+              <input 
+                type="range" min="-15" max="15" step="0.1"
+                className="custom-slider"
+                value={editingStats.WAB}
+                onChange={(e) => handleSidebarStatChange('WAB', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" title={featureDescriptions["BARTHAG"]}>
+                <span>Barthag Power Rating</span>
+                <span className="form-value">{editingStats.BARTHAG.toFixed(3)}</span>
+              </label>
+              <input 
+                type="range" min="0.0" max="1.0" step="0.001"
+                className="custom-slider"
+                value={editingStats.BARTHAG}
+                onChange={(e) => handleSidebarStatChange('BARTHAG', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" title={featureDescriptions["BADJ EM"]}>
+                <span>Adjusted Efficiency Margin (BADJ EM)</span>
+                <span className="form-value">{editingStats["BADJ EM"].toFixed(1)}</span>
+              </label>
+              <input 
+                type="range" min="-20" max="40" step="0.1"
+                className="custom-slider"
+                value={editingStats["BADJ EM"]}
+                onChange={(e) => handleSidebarStatChange('BADJ EM', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" title={featureDescriptions["TR RANK"]}>
+                <span>Team Rankings Rank (TR RANK)</span>
+                <span className="form-value">{editingStats["TR RANK"]}</span>
+              </label>
+              <input 
+                type="range" min="1" max="362" step="1"
+                className="custom-slider"
+                value={editingStats["TR RANK"]}
+                onChange={(e) => handleSidebarStatChange('TR RANK', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" title={featureDescriptions["FT%"]}>
+                <span>Free Throw % (FT%)</span>
+                <span className="form-value">{editingStats["FT%"].toFixed(1)}%</span>
+              </label>
+              <input 
+                type="range" min="40" max="95" step="0.1"
+                className="custom-slider"
+                value={editingStats["FT%"]}
+                onChange={(e) => handleSidebarStatChange('FT%', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" title={featureDescriptions["AST%"]}>
+                <span>Assist % (AST%)</span>
+                <span className="form-value">{editingStats["AST%"].toFixed(1)}%</span>
+              </label>
+              <input 
+                type="range" min="30" max="75" step="0.1"
+                className="custom-slider"
+                value={editingStats["AST%"]}
+                onChange={(e) => handleSidebarStatChange('AST%', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" title={featureDescriptions["CONSISTENCY TR RATING"]}>
+                <span>Consistency Rating</span>
+                <span className="form-value">{editingStats["CONSISTENCY TR RATING"].toFixed(1)}</span>
+              </label>
+              <input 
+                type="range" min="5.0" max="20.0" step="0.1"
+                className="custom-slider"
+                value={editingStats["CONSISTENCY TR RATING"]}
+                onChange={(e) => handleSidebarStatChange('CONSISTENCY TR RATING', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" title={featureDescriptions["EXP"]}>
+                <span>Roster Experience (EXP)</span>
+                <span className="form-value">{editingStats.EXP.toFixed(2)} yrs</span>
+              </label>
+              <input 
+                type="range" min="0.5" max="3.5" step="0.01"
+                className="custom-slider"
+                value={editingStats.EXP}
+                onChange={(e) => handleSidebarStatChange('EXP', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" title={featureDescriptions["LAST"]}>
+                <span>Consistency Last Rank</span>
+                <span className="form-value">{editingStats.LAST}</span>
+              </label>
+              <input 
+                type="range" min="1" max="362" step="1"
+                className="custom-slider"
+                value={editingStats.LAST}
+                onChange={(e) => handleSidebarStatChange('LAST', e.target.value)}
+              />
+            </div>
+
+            <button 
+              className="sim-btn"
+              style={{ marginTop: '1rem', width: '100%', display: 'flex', justifyContent: 'center' }}
+              onClick={saveSidebarEdits}
+            >
+              <CheckCircle size={16} /> Save & Re-simulate
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
