@@ -22,12 +22,36 @@ const featureDescriptions = {
   "EXP": "Average experience of players on the roster (in years)."
 };
 
+// Hardcoded feature importances from Random Forest model (based on Python training run)
+const featureImportances = [
+  { feature: "WAB_TEAM1", label: "Wins Above Bubble (Team 1)", value: 0.0766 },
+  { feature: "WAB_TEAM2", label: "Wins Above Bubble (Team 2)", value: 0.0699 },
+  { feature: "BARTHAG_TEAM2", label: "Barthag Power Rating (Team 2)", value: 0.0682 },
+  { feature: "TR RANK_TEAM2", label: "Team Rankings Rank (Team 2)", value: 0.0674 },
+  { feature: "BADJ EM_TEAM2", label: "Adj. Efficiency Margin (Team 2)", value: 0.0596 },
+  { feature: "BADJ EM_TEAM1", label: "Adj. Efficiency Margin (Team 1)", value: 0.0543 },
+  { feature: "LAST_TEAM2", label: "Consistency Last Rank (Team 2)", value: 0.0537 },
+  { feature: "FT%_TEAM1", label: "Free Throw % (Team 1)", value: 0.0514 },
+  { feature: "BARTHAG_TEAM1", label: "Barthag Power Rating (Team 1)", value: 0.0507 },
+  { feature: "AST%_TEAM1", label: "Assist % (Team 1)", value: 0.0498 },
+  { feature: "CONSISTENCY_TEAM1", label: "Consistency Rating (Team 1)", value: 0.0458 },
+  { feature: "AST%_TEAM2", label: "Assist % (Team 2)", value: 0.0449 },
+  { feature: "FT%_TEAM2", label: "Free Throw % (Team 2)", value: 0.0447 },
+  { feature: "EXP_TEAM2", label: "Experience (Team 2)", value: 0.0442 },
+  { feature: "EXP_TEAM1", label: "Experience (Team 1)", value: 0.0435 },
+  { feature: "LAST_TEAM1", label: "Consistency Last Rank (Team 1)", value: 0.0387 },
+  { feature: "CONSISTENCY_TEAM2", label: "Consistency Rating (Team 2)", value: 0.0377 },
+  { feature: "TR RANK_TEAM1", label: "Team Rankings Rank (Team 1)", value: 0.0356 },
+  { feature: "SEED_TEAM1", label: "Tournament Seed (Team 1)", value: 0.0349 },
+  { feature: "SEED_TEAM2", label: "Tournament Seed (Team 2)", value: 0.0285 }
+].sort((a, b) => b.value - a.value);
+
 // Simulation Helper
 function simulateRound(matchups, modelType, modelsData, statsMap) {
   const results = [];
   const winners = [];
 
-  matchups.forEach((match, index) => {
+  matchups.forEach((match) => {
     const t1 = match.TEAM1;
     const t2 = match.TEAM2;
     const t1Stats = statsMap[t1] || { TEAM: t1, SEED: 16, WAB: 0, "FT%": 70, "CONSISTENCY TR RATING": 10, EXP: 2, "BADJ EM": 0, "TR RANK": 150, BARTHAG: 0.5, LAST: 150, "AST%": 50 };
@@ -92,6 +116,59 @@ function App() {
   const [editingTeamName, setEditingTeamName] = useState(null); // String name of team being edited
   const [editingStats, setEditingStats] = useState(null);
 
+  // Insights State (Seed-based averages)
+  const [seedAverages, setSeedAverages] = useState([]);
+
+  // Compute seed averages dynamically on mount
+  useEffect(() => {
+    // Group historical teams by seed
+    const seedGroups = {};
+    for (let i = 1; i <= 16; i++) {
+      seedGroups[i] = {
+        SEED: i,
+        count: 0,
+        WAB: 0,
+        "FT%": 0,
+        "AST%": 0,
+        BARTHAG: 0,
+        "BADJ EM": 0,
+        EXP: 0,
+        "CONSISTENCY TR RATING": 0
+      };
+    }
+
+    teamsHistorical.forEach(t => {
+      const seed = parseInt(t.SEED);
+      if (seed >= 1 && seed <= 16) {
+        const g = seedGroups[seed];
+        g.count += 1;
+        g.WAB += t.WAB || 0;
+        g["FT%"] += t["FT%"] || 0;
+        g["AST%"] += t["AST%"] || 0;
+        g.BARTHAG += t.BARTHAG || 0;
+        g["BADJ EM"] += t["BADJ EM"] || 0;
+        g.EXP += t.EXP || 0;
+        g["CONSISTENCY TR RATING"] += t["CONSISTENCY TR RATING"] || 0;
+      }
+    });
+
+    const calculatedAverages = Object.values(seedGroups).map(g => {
+      const cnt = g.count || 1;
+      return {
+        SEED: g.SEED,
+        WAB: g.WAB / cnt,
+        "FT%": g["FT%"] / cnt,
+        "AST%": g["AST%"] / cnt,
+        BARTHAG: g.BARTHAG / cnt,
+        "BADJ EM": g["BADJ EM"] / cnt,
+        EXP: g.EXP / cnt,
+        "CONSISTENCY TR RATING": g["CONSISTENCY TR RATING"] / cnt
+      };
+    });
+
+    setSeedAverages(calculatedAverages);
+  }, []);
+
   // Initial setup of stats map and default selector teams
   useEffect(() => {
     const statsMap = {};
@@ -140,7 +217,6 @@ function App() {
     let selectedStats = null;
     if (key.startsWith('2025-')) {
       const teamName = key.replace('2025-', '');
-      // Use stats from globalStatsMap in case they were edited
       selectedStats = globalStatsMap[teamName] || teams2025.find(t => t.TEAM === teamName);
     } else {
       const match = key.match(/^hist-(\d+)-(.*)$/);
@@ -167,7 +243,6 @@ function App() {
     const numericVal = parseFloat(val);
     if (teamNum === 1) {
       setTeam1Stats(prev => ({ ...prev, [feature]: numericVal }));
-      // Sync back to globalStatsMap if it's a 2025 team
       if (selectedTeam1Key.startsWith('2025-')) {
         const name = selectedTeam1Key.replace('2025-', '');
         setGlobalStatsMap(prev => ({
@@ -177,7 +252,6 @@ function App() {
       }
     } else {
       setTeam2Stats(prev => ({ ...prev, [feature]: numericVal }));
-      // Sync back to globalStatsMap if it's a 2025 team
       if (selectedTeam2Key.startsWith('2025-')) {
         const name = selectedTeam2Key.replace('2025-', '');
         setGlobalStatsMap(prev => ({
@@ -221,22 +295,11 @@ function App() {
 
   // Run full bracket simulation
   const runBracketSimulation = () => {
-    // Round of 64
     const r64Sim = simulateRound(matchups2025, modelType, modelsData, globalStatsMap);
-    
-    // Round of 32
     const r32Sim = simulateRound(r64Sim.nextMatchups, modelType, modelsData, globalStatsMap);
-    
-    // Sweet 16
     const s16Sim = simulateRound(r32Sim.nextMatchups, modelType, modelsData, globalStatsMap);
-    
-    // Elite 8
     const e8Sim = simulateRound(s16Sim.nextMatchups, modelType, modelsData, globalStatsMap);
-    
-    // Final Four
     const f4Sim = simulateRound(e8Sim.nextMatchups, modelType, modelsData, globalStatsMap);
-    
-    // Championship
     const champSim = simulateRound(f4Sim.nextMatchups, modelType, modelsData, globalStatsMap);
 
     const champRes = champSim.results[0];
@@ -276,7 +339,6 @@ function App() {
       [editingTeamName]: { ...editingStats }
     }));
 
-    // If this team is currently active in the Predictor tab, sync it
     if (team1Stats && team1Stats.TEAM === editingTeamName) {
       setTeam1Stats({ ...editingStats });
     }
@@ -287,7 +349,6 @@ function App() {
     setEditingTeamName(null);
     setEditingStats(null);
 
-    // Auto re-run simulation if it has already been run once
     if (bracketSimulated) {
       setTimeout(() => {
         runBracketSimulation();
@@ -332,9 +393,6 @@ function App() {
           <button 
             className={`tab-btn ${activeTab === 'insights' ? 'active' : ''}`}
             onClick={() => setActiveTab('insights')}
-            disabled
-            style={{ opacity: 0.5, cursor: 'not-allowed' }}
-            title="Coming soon in Step 9"
           >
             <BarChart2 size={16} /> Insights
           </button>
@@ -672,7 +730,7 @@ function App() {
                         type="range" min="1" max="362" step="1"
                         className="custom-slider"
                         value={team2Stats["TR RANK"]}
-                        onChange={(e) => handleStatChange(2, 'TR RANK', e.target.value)}
+                        onChange={(e) => handleSidebarStatChange('TR RANK', e.target.value)} // fix event handler
                       />
                     </div>
 
@@ -987,6 +1045,82 @@ function App() {
                 </div>
 
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Data Insights */}
+        {activeTab === 'insights' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div className="insights-grid">
+              
+              {/* Seed Performance Analysis Table */}
+              <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Tournament Seeding & Stats Correlation</h2>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    Historical averages calculated dynamically across all tournament teams by seed.
+                  </p>
+                </div>
+
+                <div className="table-wrapper">
+                  <table className="insights-table">
+                    <thead>
+                      <tr>
+                        <th>Seed</th>
+                        <th>Avg WAB</th>
+                        <th>Avg Barthag</th>
+                        <th>Avg Adj EM</th>
+                        <th>Avg FT%</th>
+                        <th>Avg Assist%</th>
+                        <th>Avg Exp</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {seedAverages.map(row => (
+                        <tr key={`seed-avg-${row.SEED}`}>
+                          <td style={{ fontWeight: '700', color: 'var(--text-main)' }}>#{row.SEED}</td>
+                          <td style={{ color: row.WAB >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
+                            {row.WAB >= 0 ? '+' : ''}{row.WAB.toFixed(1)}
+                          </td>
+                          <td>{row.BARTHAG.toFixed(3)}</td>
+                          <td>{row.BARTHAG >= 0.5 ? '+' : ''}{row["BADJ EM"].toFixed(1)}</td>
+                          <td>{row["FT%"].toFixed(1)}%</td>
+                          <td>{row["AST%"].toFixed(1)}%</td>
+                          <td>{row.EXP.toFixed(2)} yrs</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Feature Importance panel */}
+              <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Model Feature Importances</h2>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    Relative weight and impact of matchups variables on the Random Forest predictions.
+                  </p>
+                </div>
+
+                <div className="importance-list">
+                  {featureImportances.map((item, idx) => (
+                    <div key={`feat-imp-${idx}`} className="importance-item">
+                      <div className="importance-item-header">
+                        <span style={{ color: 'var(--text-main)', fontSize: '0.8rem' }}>{item.label}</span>
+                        <span style={{ color: 'var(--color-primary)', fontSize: '0.8rem', fontFamily: 'var(--font-heading)', fontWeight: '700' }}>
+                          {(item.value * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="importance-bar-track">
+                        <div className="importance-bar-fill" style={{ width: `${(item.value / 0.08) * 100}%` }}></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </div>
           </div>
         )}
