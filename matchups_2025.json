@@ -1,0 +1,162 @@
+[
+  {
+    "MATCHUP_ID": 0,
+    "TEAM1": "Auburn",
+    "TEAM2": "Alabama St."
+  },
+  {
+    "MATCHUP_ID": 1,
+    "TEAM1": "Louisville",
+    "TEAM2": "Creighton"
+  },
+  {
+    "MATCHUP_ID": 2,
+    "TEAM1": "Michigan",
+    "TEAM2": "UC San Diego"
+  },
+  {
+    "MATCHUP_ID": 3,
+    "TEAM1": "Texas A&M",
+    "TEAM2": "Yale"
+  },
+  {
+    "MATCHUP_ID": 4,
+    "TEAM1": "Mississippi",
+    "TEAM2": "North Carolina"
+  },
+  {
+    "MATCHUP_ID": 5,
+    "TEAM1": "Iowa St.",
+    "TEAM2": "Lipscomb"
+  },
+  {
+    "MATCHUP_ID": 6,
+    "TEAM1": "Marquette",
+    "TEAM2": "New Mexico"
+  },
+  {
+    "MATCHUP_ID": 7,
+    "TEAM1": "Bryant",
+    "TEAM2": "Michigan St."
+  },
+  {
+    "MATCHUP_ID": 8,
+    "TEAM1": "Norfolk St.",
+    "TEAM2": "Florida"
+  },
+  {
+    "MATCHUP_ID": 9,
+    "TEAM1": "Oklahoma",
+    "TEAM2": "Connecticut"
+  },
+  {
+    "MATCHUP_ID": 10,
+    "TEAM1": "Colorado St.",
+    "TEAM2": "Memphis"
+  },
+  {
+    "MATCHUP_ID": 11,
+    "TEAM1": "Grand Canyon",
+    "TEAM2": "Maryland"
+  },
+  {
+    "MATCHUP_ID": 12,
+    "TEAM1": "Drake",
+    "TEAM2": "Missouri"
+  },
+  {
+    "MATCHUP_ID": 13,
+    "TEAM1": "UNC Wilmington",
+    "TEAM2": "Texas Tech"
+  },
+  {
+    "MATCHUP_ID": 14,
+    "TEAM1": "Kansas",
+    "TEAM2": "Arkansas"
+  },
+  {
+    "MATCHUP_ID": 15,
+    "TEAM1": "Nebraska Omaha",
+    "TEAM2": "St. John's"
+  },
+  {
+    "MATCHUP_ID": 16,
+    "TEAM1": "Mount St. Mary's",
+    "TEAM2": "Duke"
+  },
+  {
+    "MATCHUP_ID": 17,
+    "TEAM1": "Baylor",
+    "TEAM2": "Mississippi St."
+  },
+  {
+    "MATCHUP_ID": 18,
+    "TEAM1": "Oregon",
+    "TEAM2": "Liberty"
+  },
+  {
+    "MATCHUP_ID": 19,
+    "TEAM1": "Arizona",
+    "TEAM2": "Akron"
+  },
+  {
+    "MATCHUP_ID": 20,
+    "TEAM1": "BYU",
+    "TEAM2": "VCU"
+  },
+  {
+    "MATCHUP_ID": 21,
+    "TEAM1": "Wisconsin",
+    "TEAM2": "Montana"
+  },
+  {
+    "MATCHUP_ID": 22,
+    "TEAM1": "Vanderbilt",
+    "TEAM2": "Saint Mary's"
+  },
+  {
+    "MATCHUP_ID": 23,
+    "TEAM1": "Robert Morris",
+    "TEAM2": "Alabama"
+  },
+  {
+    "MATCHUP_ID": 24,
+    "TEAM1": "SIU Edwardsville",
+    "TEAM2": "Houston"
+  },
+  {
+    "MATCHUP_ID": 25,
+    "TEAM1": "Gonzaga",
+    "TEAM2": "Georgia"
+  },
+  {
+    "MATCHUP_ID": 26,
+    "TEAM1": "McNeese St.",
+    "TEAM2": "Clemson"
+  },
+  {
+    "MATCHUP_ID": 27,
+    "TEAM1": "High Point",
+    "TEAM2": "Purdue"
+  },
+  {
+    "MATCHUP_ID": 28,
+    "TEAM1": "Xavier",
+    "TEAM2": "Illinois"
+  },
+  {
+    "MATCHUP_ID": 29,
+    "TEAM1": "Kentucky",
+    "TEAM2": "Troy"
+  },
+  {
+    "MATCHUP_ID": 30,
+    "TEAM1": "Utah St.",
+    "TEAM2": "UCLA"
+  },
+  {
+    "MATCHUP_ID": 31,
+    "TEAM1": "Wofford",
+    "TEAM2": "Tennessee"
+  }
+]
