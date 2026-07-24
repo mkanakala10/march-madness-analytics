@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, TrendingUp, BarChart2, ShieldAlert, Settings, HelpCircle, RefreshCw, X, Award, CheckCircle } from 'lucide-react';
+import { Play, TrendingUp, BarChart2, ShieldAlert, RefreshCw, X, Award, CheckCircle, Target, Cpu, BookOpen } from 'lucide-react';
 import { predictMatchup } from './predictor.js';
 
 // Import JSON data directly (handled out-of-the-box by Vite)
@@ -86,6 +86,294 @@ function simulateRound(matchups, modelType, modelsData, statsMap) {
   return { results, nextMatchups };
 }
 
+// Generates dynamic scouting reports based on stats differences
+function generateScoutingReport(team1, team2) {
+  if (!team1 || !team2) return [];
+  const reports = [];
+
+  // 1. Efficiency Margin (BADJ EM)
+  const emDiff = team1["BADJ EM"] - team2["BADJ EM"];
+  if (Math.abs(emDiff) >= 5.0) {
+    const strongTeam = emDiff > 0 ? team1.TEAM : team2.TEAM;
+    reports.push({
+      type: 'efficiency',
+      title: 'Per-Possession Efficiency',
+      desc: `${strongTeam} holds a significant advantage in Adjusted Efficiency Margin (+${Math.abs(emDiff).toFixed(1)} EM), indicating a stronger overall offensive/defensive profile.`,
+      isTeam1Advantage: emDiff > 0
+    });
+  } else {
+    reports.push({
+      type: 'efficiency',
+      title: 'Per-Possession Efficiency',
+      desc: `Very close efficiency metrics (margin of ${Math.abs(emDiff).toFixed(1)}). Expect a highly contested match with frequent lead changes.`,
+      isNeutral: true
+    });
+  }
+
+  // 2. Wins Above Bubble (WAB)
+  const wabDiff = team1.WAB - team2.WAB;
+  if (Math.abs(wabDiff) >= 3.0) {
+    const strongTeam = wabDiff > 0 ? team1.TEAM : team2.TEAM;
+    reports.push({
+      type: 'wab',
+      title: 'Resume & High-Pressure Performance',
+      desc: `${strongTeam} has a superior Wins Above Bubble score (+${Math.abs(wabDiff).toFixed(1)} WAB), showing a stronger record against bubble-tier opponents.`,
+      isTeam1Advantage: wabDiff > 0
+    });
+  }
+
+  // 3. Free Throws (FT%)
+  const ftDiff = team1["FT%"] - team2["FT%"];
+  if (Math.abs(ftDiff) >= 4.0) {
+    const strongTeam = ftDiff > 0 ? team1.TEAM : team2.TEAM;
+    reports.push({
+      type: 'clutch',
+      title: 'Clutch Free-Throw Shooting',
+      desc: `${strongTeam} is more reliable from the free-throw line (+${Math.abs(ftDiff).toFixed(1)}% FT%), which is a critical edge in late-game situations.`,
+      isTeam1Advantage: ftDiff > 0
+    });
+  }
+
+  // 4. Experience (EXP)
+  const expDiff = team1.EXP - team2.EXP;
+  if (Math.abs(expDiff) >= 0.4) {
+    const olderTeam = expDiff > 0 ? team1.TEAM : team2.TEAM;
+    reports.push({
+      type: 'experience',
+      title: 'Roster Experience & Maturity',
+      desc: `${olderTeam} holds a clear edge in experience (+${Math.abs(expDiff).toFixed(2)} average years), providing stability under high-pressure tournament conditions.`,
+      isTeam1Advantage: expDiff > 0
+    });
+  }
+
+  // 5. Assist Percentage / Ball Movement (AST%)
+  const astDiff = team1["AST%"] - team2["AST%"];
+  if (Math.abs(astDiff) >= 6.0) {
+    const strongTeam = astDiff > 0 ? team1.TEAM : team2.TEAM;
+    reports.push({
+      type: 'passing',
+      title: 'Ball Movement & Chemistry',
+      desc: `${strongTeam} has a substantially higher Assist rate (+${Math.abs(astDiff).toFixed(1)}%), highlighting superior offensive fluidity.`,
+      isTeam1Advantage: astDiff > 0
+    });
+  }
+
+  return reports;
+}
+
+// Radar Chart Helpers to normalize stats for radial coordinates
+const normalizeStat = (feature, value) => {
+  if (value === undefined || value === null) return 0.5;
+  switch (feature) {
+    case 'WAB':
+      return Math.min(Math.max((value + 15) / 30, 0), 1);
+    case 'BARTHAG':
+      return Math.min(Math.max(value, 0), 1);
+    case 'BADJ EM':
+      return Math.min(Math.max((value + 20) / 60, 0), 1);
+    case 'EXP':
+      return Math.min(Math.max((value - 0.5) / 3.0, 0), 1);
+    case 'FT%':
+      return Math.min(Math.max((value - 40) / 55, 0), 1);
+    default:
+      return 0.5;
+  }
+};
+
+const RADAR_FEATURES = [
+  { key: 'WAB', label: 'Wins Above Bubble' },
+  { key: 'BARTHAG', label: 'Barthag Power' },
+  { key: 'BADJ EM', label: 'Efficiency Margin' },
+  { key: 'EXP', label: 'Experience' },
+  { key: 'FT%', label: 'Free Throw %' }
+];
+
+// Interactive SVG Radar Chart Component
+function RadarChart({ team1, team2 }) {
+  if (!team1 || !team2) return null;
+
+  const cx = 150;
+  const cy = 150;
+  const r = 95;
+  const numFeatures = RADAR_FEATURES.length;
+
+  // Calculate vertices for grid levels (0.25, 0.5, 0.75, 1.0)
+  const getGridPoints = (level) => {
+    return RADAR_FEATURES.map((_, i) => {
+      const angle = -Math.PI / 2 + (i * 2 * Math.PI) / numFeatures;
+      const x = cx + level * r * Math.cos(angle);
+      const y = cy + level * r * Math.sin(angle);
+      return `${x},${y}`;
+    }).join(' ');
+  };
+
+  // Calculate polygon points for a team
+  const getTeamPoints = (team) => {
+    return RADAR_FEATURES.map((feat, i) => {
+      const val = team[feat.key] !== undefined ? team[feat.key] : 0;
+      const normVal = normalizeStat(feat.key, val);
+      const angle = -Math.PI / 2 + (i * 2 * Math.PI) / numFeatures;
+      const x = cx + normVal * r * Math.cos(angle);
+      const y = cy + normVal * r * Math.sin(angle);
+      return `${x},${y}`;
+    }).join(' ');
+  };
+
+  const team1Points = getTeamPoints(team1);
+  const team2Points = getTeamPoints(team2);
+
+  return (
+    <div className="radar-chart-container">
+      <svg viewBox="0 0 300 300" className="radar-chart-svg">
+        {/* Background Grid Polygons */}
+        {[0.25, 0.5, 0.75, 1.0].map((level, idx) => (
+          <polygon
+            key={`grid-${idx}`}
+            points={getGridPoints(level)}
+            className="radar-grid-line"
+          />
+        ))}
+
+        {/* Axis Rays */}
+        {RADAR_FEATURES.map((feat, i) => {
+          const angle = -Math.PI / 2 + (i * 2 * Math.PI) / numFeatures;
+          const x = cx + r * Math.cos(angle);
+          const y = cy + r * Math.sin(angle);
+          return (
+            <line
+              key={`axis-${i}`}
+              x1={cx}
+              y1={cy}
+              x2={x}
+              y2={y}
+              className="radar-axis-ray"
+            />
+          );
+        })}
+
+        {/* Team 1 Polygon (Blue Accent) */}
+        <polygon
+          points={team1Points}
+          className="radar-poly-team1"
+        />
+
+        {/* Team 2 Polygon (Orange Accent) */}
+        <polygon
+          points={team2Points}
+          className="radar-poly-team2"
+        />
+
+        {/* Outer Dot Vertices */}
+        {RADAR_FEATURES.map((feat, i) => {
+          const angle = -Math.PI / 2 + (i * 2 * Math.PI) / numFeatures;
+          
+          // Team 1 Dots
+          const val1 = team1[feat.key] !== undefined ? team1[feat.key] : 0;
+          const normVal1 = normalizeStat(feat.key, val1);
+          const x1 = cx + normVal1 * r * Math.cos(angle);
+          const y1 = cy + normVal1 * r * Math.sin(angle);
+
+          // Team 2 Dots
+          const val2 = team2[feat.key] !== undefined ? team2[feat.key] : 0;
+          const normVal2 = normalizeStat(feat.key, val2);
+          const x2 = cx + normVal2 * r * Math.cos(angle);
+          const y2 = cy + normVal2 * r * Math.sin(angle);
+
+          return (
+            <g key={`dots-${i}`}>
+              <circle cx={x1} cy={y1} r="4" className="radar-dot-team1" />
+              <circle cx={x2} cy={y2} r="4" className="radar-dot-team2" />
+            </g>
+          );
+        })}
+
+        {/* Labels at pentagon corners */}
+        {RADAR_FEATURES.map((feat, i) => {
+          const angle = -Math.PI / 2 + (i * 2 * Math.PI) / numFeatures;
+          const labelDist = r + 16;
+          const x = cx + labelDist * Math.cos(angle);
+          const y = cy + labelDist * Math.sin(angle);
+          
+          let textAnchor = 'middle';
+          if (Math.cos(angle) > 0.1) textAnchor = 'start';
+          else if (Math.cos(angle) < -0.1) textAnchor = 'end';
+
+          let dy = '0.35em';
+          if (angle === -Math.PI / 2) dy = '-0.5em';
+          else if (angle > 0 && angle < Math.PI) dy = '0.9em';
+
+          return (
+            <text
+              key={`label-${i}`}
+              x={x}
+              y={y}
+              textAnchor={textAnchor}
+              dy={dy}
+              className="radar-label"
+            >
+              {feat.key}
+            </text>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// Helper to find the closest statistical matching team from history
+function findClosestHistoricalComp(currentTeam, historicalList) {
+  if (!currentTeam || !historicalList || historicalList.length === 0) return null;
+
+  let bestComp = null;
+  let highestSim = -1;
+
+  const features = ['WAB', 'BARTHAG', 'BADJ EM', 'EXP', 'FT%', 'SEED'];
+  const N = features.length;
+
+  for (let i = 0; i < historicalList.length; i++) {
+    const hist = historicalList[i];
+    
+    // Skip if it's the exact same team from the same year
+    if (hist.TEAM === currentTeam.TEAM && hist.YEAR === currentTeam.YEAR) {
+      continue;
+    }
+
+    let sumSqDiff = 0;
+    for (let j = 0; j < N; j++) {
+      const feat = features[j];
+      const val1 = currentTeam[feat] !== undefined ? currentTeam[feat] : 0;
+      const val2 = hist[feat] !== undefined ? hist[feat] : 0;
+
+      let norm1, norm2;
+      if (feat === 'SEED') {
+        norm1 = (val1 - 1) / 15;
+        norm2 = (val2 - 1) / 15;
+      } else {
+        norm1 = normalizeStat(feat, val1);
+        norm2 = normalizeStat(feat, val2);
+      }
+
+      sumSqDiff += Math.pow(norm1 - norm2, 2);
+    }
+
+    const dist = Math.sqrt(sumSqDiff);
+    const sim = 1 - (dist / Math.sqrt(N));
+    const simPercentage = sim * 100;
+
+    if (simPercentage > highestSim) {
+      highestSim = simPercentage;
+      bestComp = {
+        team: hist.TEAM,
+        year: hist.YEAR,
+        similarity: simPercentage,
+        stats: hist
+      };
+    }
+  }
+
+  return bestComp;
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('predictor'); // 'predictor' | 'bracket' | 'insights'
   const [modelType, setModelType] = useState('random_forest'); // 'random_forest' | 'decision_tree' | 'logistic_regression'
@@ -98,7 +386,15 @@ function App() {
   const [selectedTeam2Key, setSelectedTeam2Key] = useState('');
   const [team1Stats, setTeam1Stats] = useState(null);
   const [team2Stats, setTeam2Stats] = useState(null);
-  const [prediction, setPrediction] = useState(null);
+  const [allPredictions, setAllPredictions] = useState(null);
+
+  const compTeam1 = React.useMemo(() => {
+    return findClosestHistoricalComp(team1Stats, teamsHistorical);
+  }, [team1Stats]);
+
+  const compTeam2 = React.useMemo(() => {
+    return findClosestHistoricalComp(team2Stats, teamsHistorical);
+  }, [team2Stats]);
 
   // Bracket State
   const [bracketSimulated, setBracketSimulated] = useState(false);
@@ -194,8 +490,23 @@ function App() {
   // Update predictions whenever stats or model changes in Predictor tab
   useEffect(() => {
     if (team1Stats && team2Stats) {
-      const res = predictMatchup(modelType, modelsData, team1Stats, team2Stats);
-      setPrediction(res);
+      const rf = predictMatchup('random_forest', modelsData, team1Stats, team2Stats);
+      const dt = predictMatchup('decision_tree', modelsData, team1Stats, team2Stats);
+      const lr = predictMatchup('logistic_regression', modelsData, team1Stats, team2Stats);
+
+      const consensusProb1 = (rf.team1Prob + dt.team1Prob + lr.team1Prob) / 3;
+      const consensusProb2 = (rf.team2Prob + dt.team2Prob + lr.team2Prob) / 3;
+
+      setAllPredictions({
+        random_forest: rf,
+        decision_tree: dt,
+        logistic_regression: lr,
+        consensus: {
+          winner: consensusProb1 >= 0.5 ? 1 : 2,
+          team1Prob: consensusProb1,
+          team2Prob: consensusProb2
+        }
+      });
     }
   }, [team1Stats, team2Stats, modelType]);
 
@@ -564,6 +875,22 @@ function App() {
                         onChange={(e) => handleStatChange(1, 'LAST', e.target.value)}
                       />
                     </div>
+
+                    {/* Historical Comp Display */}
+                    {compTeam1 && (
+                      <div className="similarity-comp-card">
+                        <span className="similarity-label">Closest Historical Comp</span>
+                        <div className="similarity-value-row">
+                          <span className="similarity-team-name">{compTeam1.team} ({compTeam1.year})</span>
+                          <span className="similarity-percentage">{compTeam1.similarity.toFixed(1)}% Match</span>
+                        </div>
+                        <div className="similarity-stats-grid">
+                          <span>Seed: #{compTeam1.stats.SEED}</span>
+                          <span>WAB: {compTeam1.stats.WAB.toFixed(1)}</span>
+                          <span>Barthag: {compTeam1.stats.BARTHAG.toFixed(3)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -572,35 +899,101 @@ function App() {
               <div className="matchup-center">
                 <div className="vs-badge">VS</div>
 
-                {prediction && team1Stats && team2Stats && (
-                  <div className="winner-prediction-box">
-                    <span className="winner-label">Predicted Winner</span>
-                    <h2 className="winner-name" style={{ color: prediction.winner === 1 ? 'var(--color-secondary)' : 'var(--color-primary)' }}>
-                      {prediction.winner === 1 ? team1Stats.TEAM : team2Stats.TEAM}
+                <RadarChart team1={team1Stats} team2={team2Stats} />
+
+                {allPredictions && allPredictions.consensus && team1Stats && team2Stats && (
+                  <div className="winner-prediction-box consensus-box">
+                    <span className="winner-label" style={{ fontWeight: '700', color: 'var(--color-primary)', fontSize: '0.8rem' }}>Consensus Prediction</span>
+                    <h2 className="winner-name" style={{ color: allPredictions.consensus.winner === 1 ? 'var(--color-secondary)' : 'var(--color-primary)' }}>
+                      {allPredictions.consensus.winner === 1 ? team1Stats.TEAM : team2Stats.TEAM}
                     </h2>
                     <div className="winner-probability">
-                      {prediction.winner === 1 
-                        ? (prediction.team1Prob * 100).toFixed(1)
-                        : (prediction.team2Prob * 100).toFixed(1)}%
+                      {allPredictions.consensus.winner === 1 
+                        ? (allPredictions.consensus.team1Prob * 100).toFixed(1)
+                        : (allPredictions.consensus.team2Prob * 100).toFixed(1)}%
                     </div>
-                    <span className="winner-label" style={{ fontSize: '0.75rem', display: 'block', marginTop: '0.25rem' }}>Win Probability</span>
+                    <span className="winner-label" style={{ fontSize: '0.7rem', display: 'block', marginTop: '0.15rem' }}>Consensus Win Probability</span>
 
                     {/* Probability Split Bar */}
                     <div className="prob-bar-container">
-                      <div className="prob-bar-team1" style={{ width: `${prediction.team1Prob * 100}%` }}></div>
-                      <div className="prob-bar-team2" style={{ width: `${prediction.team2Prob * 100}%` }}></div>
+                      <div className="prob-bar-team1" style={{ width: `${allPredictions.consensus.team1Prob * 100}%` }}></div>
+                      <div className="prob-bar-team2" style={{ width: `${allPredictions.consensus.team2Prob * 100}%` }}></div>
                     </div>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.5rem', color: 'var(--text-muted)', fontWeight: '600' }}>
-                      <span>{team1Stats.TEAM} ({(prediction.team1Prob * 100).toFixed(1)}%)</span>
-                      <span>{team2Stats.TEAM} ({(prediction.team2Prob * 100).toFixed(1)}%)</span>
+                      <span>{team1Stats.TEAM} ({(allPredictions.consensus.team1Prob * 100).toFixed(1)}%)</span>
+                      <span>{team2Stats.TEAM} ({(allPredictions.consensus.team2Prob * 100).toFixed(1)}%)</span>
                     </div>
                   </div>
                 )}
 
-                {/* Model Toggle Radio Panel */}
+                {/* Model Predictions Comparison Grid */}
+                {allPredictions && team1Stats && team2Stats && (
+                  <div className="model-grid">
+                    <div className={`model-mini-card ${allPredictions.random_forest.winner === 1 ? 'team1-pick' : 'team2-pick'}`}>
+                      <span className="mini-card-title"><Cpu size={12} /> Random Forest</span>
+                      <span className="mini-card-winner">
+                        {allPredictions.random_forest.winner === 1 ? team1Stats.TEAM : team2Stats.TEAM}
+                      </span>
+                      <span className="mini-card-prob">
+                        {allPredictions.random_forest.winner === 1 
+                          ? (allPredictions.random_forest.team1Prob * 100).toFixed(0)
+                          : (allPredictions.random_forest.team2Prob * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className={`model-mini-card ${allPredictions.logistic_regression.winner === 1 ? 'team1-pick' : 'team2-pick'}`}>
+                      <span className="mini-card-title"><Cpu size={12} /> Logistic Reg.</span>
+                      <span className="mini-card-winner">
+                        {allPredictions.logistic_regression.winner === 1 ? team1Stats.TEAM : team2Stats.TEAM}
+                      </span>
+                      <span className="mini-card-prob">
+                        {allPredictions.logistic_regression.winner === 1 
+                          ? (allPredictions.logistic_regression.team1Prob * 100).toFixed(0)
+                          : (allPredictions.logistic_regression.team2Prob * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className={`model-mini-card ${allPredictions.decision_tree.winner === 1 ? 'team1-pick' : 'team2-pick'}`}>
+                      <span className="mini-card-title"><Cpu size={12} /> Decision Tree</span>
+                      <span className="mini-card-winner">
+                        {allPredictions.decision_tree.winner === 1 ? team1Stats.TEAM : team2Stats.TEAM}
+                      </span>
+                      <span className="mini-card-prob">
+                        {allPredictions.decision_tree.winner === 1 
+                          ? (allPredictions.decision_tree.team1Prob * 100).toFixed(0)
+                          : (allPredictions.decision_tree.team2Prob * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Dynamic Scouting Report */}
+                {team1Stats && team2Stats && (
+                  <div className="scouting-report-box">
+                    <h3 className="scouting-title"><BookOpen size={16} /> Matchup Scouting Report</h3>
+                    <div className="scouting-list">
+                      {generateScoutingReport(team1Stats, team2Stats).map((report, idx) => {
+                        let IconComponent = Target;
+                        if (report.type === 'efficiency') IconComponent = TrendingUp;
+                        else if (report.type === 'wab') IconComponent = Award;
+                        else if (report.type === 'experience') IconComponent = ShieldAlert;
+                        else if (report.type === 'passing') IconComponent = CheckCircle;
+                        return (
+                          <div key={`report-${idx}`} className={`scouting-item ${report.isNeutral ? 'neutral' : (report.isTeam1Advantage ? 'team1-advantage' : 'team2-advantage')}`}>
+                            <h4 className="scouting-item-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <IconComponent size={14} />
+                              {report.title}
+                            </h4>
+                            <p className="scouting-item-desc">{report.desc}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Model Selector Toggle (Active simulation model) */}
                 <div className="model-selector-panel">
-                  <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem', paddingLeft: '0.25rem' }}>Simulation Model</h4>
+                  <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem', paddingLeft: '0.25rem', fontWeight: '700' }}>Active Sim Model</h4>
                   
                   <div 
                     className={`model-radio ${modelType === 'random_forest' ? 'active' : ''}`}
@@ -608,7 +1001,7 @@ function App() {
                   >
                     <div className="model-radio-info">
                       <span className="model-radio-title">Random Forest</span>
-                      <span className="model-radio-desc">Ensemble of 100 trees (~70.8% Acc)</span>
+                      <span className="model-radio-desc">Active bracket model (~70.8% Acc)</span>
                     </div>
                   </div>
 
@@ -618,7 +1011,7 @@ function App() {
                   >
                     <div className="model-radio-info">
                       <span className="model-radio-title">Decision Tree</span>
-                      <span className="model-radio-desc">Recursive splits model (~59.4% Acc)</span>
+                      <span className="model-radio-desc">Active bracket model (~59.4% Acc)</span>
                     </div>
                   </div>
 
@@ -628,7 +1021,7 @@ function App() {
                   >
                     <div className="model-radio-info">
                       <span className="model-radio-title">Logistic Regression</span>
-                      <span className="model-radio-desc">Log-odds classification (~70.8% Acc)</span>
+                      <span className="model-radio-desc">Active bracket model (~70.8% Acc)</span>
                     </div>
                   </div>
                 </div>
@@ -798,6 +1191,22 @@ function App() {
                         onChange={(e) => handleStatChange(2, 'LAST', e.target.value)}
                       />
                     </div>
+
+                    {/* Historical Comp Display */}
+                    {compTeam2 && (
+                      <div className="similarity-comp-card">
+                        <span className="similarity-label">Closest Historical Comp</span>
+                        <div className="similarity-value-row">
+                          <span className="similarity-team-name">{compTeam2.team} ({compTeam2.year})</span>
+                          <span className="similarity-percentage">{compTeam2.similarity.toFixed(1)}% Match</span>
+                        </div>
+                        <div className="similarity-stats-grid">
+                          <span>Seed: #{compTeam2.stats.SEED}</span>
+                          <span>WAB: {compTeam2.stats.WAB.toFixed(1)}</span>
+                          <span>Barthag: {compTeam2.stats.BARTHAG.toFixed(3)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

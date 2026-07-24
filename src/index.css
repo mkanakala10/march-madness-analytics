@@ -244,7 +244,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Interactive Predictor Layout styling */
 .predictor-grid {
   display: grid;
-  grid-template-columns: 1fr 340px 1fr;
+  grid-template-columns: 1fr 420px 1fr;
   gap: 2rem;
   align-items: start;
 }
@@ -781,4 +781,280 @@ h1, h2, h3, h4, h5, h6 {
 
 .close-btn:hover {
   color: var(--text-main);
+}
+
+/* Multi-Model Grid & Scouting Report Styles */
+.consensus-box {
+  border: 1px solid rgba(249, 115, 22, 0.25) !important;
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.1) !important;
+  background: rgba(249, 115, 22, 0.03) !important;
+}
+
+.model-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.model-mini-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 0.4rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  text-align: center;
+  transition: var(--transition-fast);
+}
+
+.model-mini-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateY(-1px);
+}
+
+.mini-card-title {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-bottom: 0.25rem;
+}
+
+.mini-card-winner {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.mini-card-prob {
+  font-size: 0.95rem;
+  font-weight: 800;
+  margin-top: 0.15rem;
+}
+
+.team1-pick {
+  border-color: rgba(59, 130, 246, 0.25);
+  background: rgba(59, 130, 246, 0.02);
+}
+.team1-pick .mini-card-winner, .team1-pick .mini-card-prob {
+  color: var(--color-secondary);
+}
+
+.team2-pick {
+  border-color: rgba(249, 115, 22, 0.25);
+  background: rgba(249, 115, 22, 0.02);
+}
+.team2-pick .mini-card-winner, .team2-pick .mini-card-prob {
+  color: var(--color-primary);
+}
+
+.scouting-report-box {
+  width: 100%;
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: left;
+}
+
+.scouting-title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.scouting-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scouting-item {
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.scouting-item-title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 0.15rem;
+}
+
+.scouting-item-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.scouting-item.team1-advantage {
+  border-left-color: var(--color-secondary);
+  background: rgba(59, 130, 246, 0.03);
+}
+.scouting-item.team1-advantage .scouting-item-title {
+  color: var(--color-secondary);
+}
+
+.scouting-item.team2-advantage {
+  border-left-color: var(--color-primary);
+  background: rgba(249, 115, 22, 0.03);
+}
+.scouting-item.team2-advantage .scouting-item-title {
+  color: var(--color-primary);
+}
+
+.scouting-item.neutral {
+  border-left-color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.03);
+}
+.scouting-item.neutral .scouting-item-title {
+  color: var(--text-main);
+}
+
+/* SVG Radar Chart Styles */
+.radar-chart-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 280px;
+  margin: 0.5rem auto;
+}
+
+.radar-chart-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.radar-grid-line {
+  fill: rgba(255, 255, 255, 0.02);
+  stroke: rgba(255, 255, 255, 0.05);
+  stroke-width: 1px;
+}
+
+.radar-axis-ray {
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 1px;
+  stroke-dasharray: 2 2;
+}
+
+.radar-poly-team1 {
+  fill: rgba(59, 130, 246, 0.25);
+  stroke: var(--color-secondary);
+  stroke-width: 2px;
+  transition: points var(--transition-normal);
+  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.3));
+}
+
+.radar-poly-team2 {
+  fill: rgba(249, 115, 22, 0.25);
+  stroke: var(--color-primary);
+  stroke-width: 2px;
+  transition: points var(--transition-normal);
+  filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.3));
+}
+
+.radar-dot-team1 {
+  fill: #FFF;
+  stroke: var(--color-secondary);
+  stroke-width: 1.5px;
+  transition: cx var(--transition-normal), cy var(--transition-normal);
+  filter: drop-shadow(0 0 4px var(--color-secondary));
+}
+
+.radar-dot-team2 {
+  fill: #FFF;
+  stroke: var(--color-primary);
+  stroke-width: 1.5px;
+  transition: cx var(--transition-normal), cy var(--transition-normal);
+  filter: drop-shadow(0 0 4px var(--color-primary));
+}
+
+.radar-label {
+  fill: var(--text-muted);
+  font-family: var(--font-heading);
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+}
+
+/* Historical Team Similarity Card Styles */
+.similarity-comp-card {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  text-align: left;
+  border-left: 3px solid transparent;
+  transition: var(--transition-normal);
+}
+
+.team-1 .similarity-comp-card {
+  border-left-color: var(--color-secondary);
+}
+
+.team-2 .similarity-comp-card {
+  border-left-color: var(--color-primary);
+}
+
+.similarity-label {
+  font-family: var(--font-heading);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+}
+
+.similarity-value-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0.25rem 0;
+}
+
+.similarity-team-name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.similarity-percentage {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-success);
+}
+
+.similarity-stats-grid {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
 }
