@@ -12,10 +12,10 @@ random.seed(42)
 np.random.seed(42)
 
 # File paths
-model_dataset_path = "./Predicting March Madness Outcomes/data/cleaned_model_dataset.csv"
-matchups_path = "./Predicting March Madness Outcomes/data/cleaned_matchups.csv"
-dataset_2025_path = "./Predicting March Madness Outcomes/data/cleaned_2025_dataset.csv"
-matchups_2025_path = "./Predicting March Madness Outcomes/data/cleaned_2025_matchups.csv"
+model_dataset_path = "../Predicting-March-Madness-Outcomes/Predicting March Madness Outcomes/data/cleaned_model_dataset.csv"
+matchups_path = "../Predicting-March-Madness-Outcomes/Predicting March Madness Outcomes/data/cleaned_matchups.csv"
+dataset_2025_path = "../Predicting-March-Madness-Outcomes/Predicting March Madness Outcomes/data/cleaned_2025_dataset.csv"
+matchups_2025_path = "../Predicting-March-Madness-Outcomes/Predicting March Madness Outcomes/data/cleaned_2025_matchups.csv"
 
 # Top features used in the notebook
 top_features = [

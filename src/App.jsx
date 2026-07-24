@@ -4,9 +4,9 @@ import { predictMatchup } from './predictor.js';
 
 // Import JSON data directly (handled out-of-the-box by Vite)
 import modelsData from '../models.json';
-import teams2025 from '../teams_2025.json';
+import teams2026 from '../teams_2026.json';
 import teamsHistorical from '../teams_historical.json';
-import matchups2025 from '../matchups_2025.json';
+import matchups2026 from '../matchups_2026.json';
 
 // Feature explanations for tooltips/help
 const featureDescriptions = {
@@ -520,21 +520,21 @@ function App() {
   // Initial setup of stats map and default selector teams
   useEffect(() => {
     const statsMap = {};
-    teams2025.forEach(t => {
+    teams2026.forEach(t => {
       statsMap[t.TEAM] = { ...t };
     });
     setGlobalStatsMap(statsMap);
 
-    // Default Team 1: Auburn (2025), Team 2: Alabama (2025)
-    const defT1 = teams2025.find(t => t.TEAM === 'Auburn') || teams2025[0];
-    const defT2 = teams2025.find(t => t.TEAM === 'Alabama') || teams2025[1];
+    // Default Team 1: Duke (2026), Team 2: Connecticut (2026)
+    const defT1 = teams2026.find(t => t.TEAM === 'Duke') || teams2026[0];
+    const defT2 = teams2026.find(t => t.TEAM === 'Connecticut') || teams2026[1];
 
     if (defT1) {
-      setSelectedTeam1Key(`2025-${defT1.TEAM}`);
+      setSelectedTeam1Key(`2026-${defT1.TEAM}`);
       setTeam1Stats({ ...defT1 });
     }
     if (defT2) {
-      setSelectedTeam2Key(`2025-${defT2.TEAM}`);
+      setSelectedTeam2Key(`2026-${defT2.TEAM}`);
       setTeam2Stats({ ...defT2 });
     }
   }, []);
@@ -569,18 +569,18 @@ function App() {
     stats: t
   }));
 
-  const options2025 = teams2025.map(t => ({
-    key: `2025-${t.TEAM}`,
-    label: `${t.TEAM} (2025)`,
+  const options2026 = teams2026.map(t => ({
+    key: `2026-${t.TEAM}`,
+    label: `${t.TEAM} (2026)`,
     stats: t
   }));
 
   // Handle dropdown selection change in Predictor
   const handleTeamChange = (teamNum, key) => {
     let selectedStats = null;
-    if (key.startsWith('2025-')) {
-      const teamName = key.replace('2025-', '');
-      selectedStats = globalStatsMap[teamName] || teams2025.find(t => t.TEAM === teamName);
+    if (key.startsWith('2026-')) {
+      const teamName = key.replace('2026-', '');
+      selectedStats = globalStatsMap[teamName] || teams2026.find(t => t.TEAM === teamName);
     } else {
       const match = key.match(/^hist-(\d+)-(.*)$/);
       if (match) {
@@ -606,8 +606,8 @@ function App() {
     const numericVal = parseFloat(val);
     if (teamNum === 1) {
       setTeam1Stats(prev => ({ ...prev, [feature]: numericVal }));
-      if (selectedTeam1Key.startsWith('2025-')) {
-        const name = selectedTeam1Key.replace('2025-', '');
+      if (selectedTeam1Key.startsWith('2026-')) {
+        const name = selectedTeam1Key.replace('2026-', '');
         setGlobalStatsMap(prev => ({
           ...prev,
           [name]: { ...prev[name], [feature]: numericVal }
@@ -615,8 +615,8 @@ function App() {
       }
     } else {
       setTeam2Stats(prev => ({ ...prev, [feature]: numericVal }));
-      if (selectedTeam2Key.startsWith('2025-')) {
-        const name = selectedTeam2Key.replace('2025-', '');
+      if (selectedTeam2Key.startsWith('2026-')) {
+        const name = selectedTeam2Key.replace('2026-', '');
         setGlobalStatsMap(prev => ({
           ...prev,
           [name]: { ...prev[name], [feature]: numericVal }
@@ -629,9 +629,9 @@ function App() {
   const resetStats = (teamNum) => {
     const key = teamNum === 1 ? selectedTeam1Key : selectedTeam2Key;
     let originalStats = null;
-    if (key.startsWith('2025-')) {
-      const teamName = key.replace('2025-', '');
-      originalStats = teams2025.find(t => t.TEAM === teamName);
+    if (key.startsWith('2026-')) {
+      const teamName = key.replace('2026-', '');
+      originalStats = teams2026.find(t => t.TEAM === teamName);
       if (originalStats) {
         setGlobalStatsMap(prev => ({
           ...prev,
@@ -658,7 +658,7 @@ function App() {
 
   // Run full bracket simulation
   const runBracketSimulation = () => {
-    const r64Sim = simulateRound(matchups2025, modelType, modelsData, globalStatsMap, chaosFactor);
+    const r64Sim = simulateRound(matchups2026, modelType, modelsData, globalStatsMap, chaosFactor);
     const r32Sim = simulateRound(r64Sim.nextMatchups, modelType, modelsData, globalStatsMap, chaosFactor);
     const s16Sim = simulateRound(r32Sim.nextMatchups, modelType, modelsData, globalStatsMap, chaosFactor);
     const e8Sim = simulateRound(s16Sim.nextMatchups, modelType, modelsData, globalStatsMap, chaosFactor);
@@ -690,7 +690,7 @@ function App() {
       let totalUpsets = 0;
 
       // Initialize stats map for all 64 teams
-      matchups2025.forEach(m => {
+      matchups2026.forEach(m => {
         const s1 = globalStatsMap[m.TEAM1]?.SEED || 16;
         const s2 = globalStatsMap[m.TEAM2]?.SEED || 16;
         stats[m.TEAM1] = { TEAM: m.TEAM1, SEED: s1, r32: 0, s16: 0, e8: 0, f4: 0, champ: 0, winner: 0 };
@@ -701,7 +701,7 @@ function App() {
         let upsets = 0;
 
         // Run stochastically with chaosFactor = 1.0 (probabilistic outcomes) to compile correct odds
-        const r64Sim = simulateRound(matchups2025, modelType, modelsData, globalStatsMap, 1.0);
+        const r64Sim = simulateRound(matchups2026, modelType, modelsData, globalStatsMap, 1.0);
         r64Sim.results.forEach(res => {
           stats[res.WINNER].r32 += 1;
           if (res.WINNER === res.TEAM1 && res.SEED1 > res.SEED2) upsets++;
@@ -815,7 +815,7 @@ function App() {
 
   // Reset a team's stats to original values via the sidebar
   const resetSidebarStats = () => {
-    const originalStats = teams2025.find(t => t.TEAM === editingTeamName);
+    const originalStats = teams2026.find(t => t.TEAM === editingTeamName);
     if (originalStats) {
       setEditingStats({ ...originalStats });
     }
@@ -876,8 +876,8 @@ function App() {
                       onChange={(e) => handleTeamChange(1, e.target.value)}
                       style={{ marginTop: '0.5rem' }}
                     >
-                      <optgroup label="2025 Tournament Teams">
-                        {options2025.map(opt => (
+                      <optgroup label="2026 Tournament Teams">
+                        {options2026.map(opt => (
                           <option key={opt.key} value={opt.key}>{opt.label}</option>
                         ))}
                       </optgroup>
@@ -1192,8 +1192,8 @@ function App() {
                       onChange={(e) => handleTeamChange(2, e.target.value)}
                       style={{ marginTop: '0.5rem' }}
                     >
-                      <optgroup label="2025 Tournament Teams">
-                        {options2025.map(opt => (
+                      <optgroup label="2026 Tournament Teams">
+                        {options2026.map(opt => (
                           <option key={opt.key} value={opt.key}>{opt.label}</option>
                         ))}
                       </optgroup>
@@ -1368,9 +1368,9 @@ function App() {
             {/* Controls */}
             <div className="bracket-controls">
               <div>
-                <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>2025 Bracket Simulator</h2>
+                <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>2026 Bracket Simulator</h2>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  Simulate the 2025 tournament using the active <strong style={{ color: 'var(--color-primary)' }}>{modelType.replace('_', ' ')}</strong> model. Click any team name to adjust its stats!
+                  Simulate the 2026 tournament using the active <strong style={{ color: 'var(--color-primary)' }}>{modelType.replace('_', ' ')}</strong> model. Click any team name to adjust its stats!
                 </p>
               </div>
               <button 
@@ -1471,7 +1471,7 @@ function App() {
                       </div>
                     </div>
                   ))}
-                  {!bracketSimulated && matchups2025.map((m, i) => {
+                  {!bracketSimulated && matchups2026.map((m, i) => {
                     const s1 = globalStatsMap[m.TEAM1]?.SEED || 16;
                     const s2 = globalStatsMap[m.TEAM2]?.SEED || 16;
                     return (

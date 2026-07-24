@@ -1,0 +1,162 @@
+[
+  {
+    "MATCHUP_ID": 0,
+    "TEAM1": "Florida",
+    "TEAM2": "Prairie View A&M"
+  },
+  {
+    "MATCHUP_ID": 1,
+    "TEAM1": "Clemson",
+    "TEAM2": "Iowa"
+  },
+  {
+    "MATCHUP_ID": 2,
+    "TEAM1": "Vanderbilt",
+    "TEAM2": "McNeese St."
+  },
+  {
+    "MATCHUP_ID": 3,
+    "TEAM1": "Nebraska",
+    "TEAM2": "Troy"
+  },
+  {
+    "MATCHUP_ID": 4,
+    "TEAM1": "North Carolina",
+    "TEAM2": "VCU"
+  },
+  {
+    "MATCHUP_ID": 5,
+    "TEAM1": "Illinois",
+    "TEAM2": "Penn"
+  },
+  {
+    "MATCHUP_ID": 6,
+    "TEAM1": "Saint Mary's",
+    "TEAM2": "Texas A&M"
+  },
+  {
+    "MATCHUP_ID": 7,
+    "TEAM1": "Houston",
+    "TEAM2": "Idaho"
+  },
+  {
+    "MATCHUP_ID": 8,
+    "TEAM1": "Arizona",
+    "TEAM2": "LIU"
+  },
+  {
+    "MATCHUP_ID": 9,
+    "TEAM1": "Villanova",
+    "TEAM2": "Utah St."
+  },
+  {
+    "MATCHUP_ID": 10,
+    "TEAM1": "Wisconsin",
+    "TEAM2": "High Point"
+  },
+  {
+    "MATCHUP_ID": 11,
+    "TEAM1": "Arkansas",
+    "TEAM2": "Hawaii"
+  },
+  {
+    "MATCHUP_ID": 12,
+    "TEAM1": "BYU",
+    "TEAM2": "N.C. State"
+  },
+  {
+    "MATCHUP_ID": 13,
+    "TEAM1": "Gonzaga",
+    "TEAM2": "Kennesaw St."
+  },
+  {
+    "MATCHUP_ID": 14,
+    "TEAM1": "Miami FL",
+    "TEAM2": "Missouri"
+  },
+  {
+    "MATCHUP_ID": 15,
+    "TEAM1": "Purdue",
+    "TEAM2": "Queens"
+  },
+  {
+    "MATCHUP_ID": 16,
+    "TEAM1": "Duke",
+    "TEAM2": "Siena"
+  },
+  {
+    "MATCHUP_ID": 17,
+    "TEAM1": "Ohio St.",
+    "TEAM2": "TCU"
+  },
+  {
+    "MATCHUP_ID": 18,
+    "TEAM1": "St. John's",
+    "TEAM2": "Northern Iowa"
+  },
+  {
+    "MATCHUP_ID": 19,
+    "TEAM1": "Kansas",
+    "TEAM2": "Cal Baptist"
+  },
+  {
+    "MATCHUP_ID": 20,
+    "TEAM1": "Louisville",
+    "TEAM2": "South Florida"
+  },
+  {
+    "MATCHUP_ID": 21,
+    "TEAM1": "Michigan St.",
+    "TEAM2": "North Dakota St."
+  },
+  {
+    "MATCHUP_ID": 22,
+    "TEAM1": "UCLA",
+    "TEAM2": "UCF"
+  },
+  {
+    "MATCHUP_ID": 23,
+    "TEAM1": "Connecticut",
+    "TEAM2": "Furman"
+  },
+  {
+    "MATCHUP_ID": 24,
+    "TEAM1": "Michigan",
+    "TEAM2": "Howard"
+  },
+  {
+    "MATCHUP_ID": 25,
+    "TEAM1": "Georgia",
+    "TEAM2": "Saint Louis"
+  },
+  {
+    "MATCHUP_ID": 26,
+    "TEAM1": "Texas Tech",
+    "TEAM2": "Akron"
+  },
+  {
+    "MATCHUP_ID": 27,
+    "TEAM1": "Alabama",
+    "TEAM2": "Hofstra"
+  },
+  {
+    "MATCHUP_ID": 28,
+    "TEAM1": "Tennessee",
+    "TEAM2": "SMU"
+  },
+  {
+    "MATCHUP_ID": 29,
+    "TEAM1": "Virginia",
+    "TEAM2": "Wright St."
+  },
+  {
+    "MATCHUP_ID": 30,
+    "TEAM1": "Kentucky",
+    "TEAM2": "Santa Clara"
+  },
+  {
+    "MATCHUP_ID": 31,
+    "TEAM1": "Iowa St.",
+    "TEAM2": "Tennessee St."
+  }
+]
