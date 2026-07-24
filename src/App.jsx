@@ -418,6 +418,7 @@ function App() {
   const [chaosFactor, setChaosFactor] = useState(0.2); // 20% default chaos
   const [monteCarloResults, setMonteCarloResults] = useState(null);
   const [isSimulatingMC, setIsSimulatingMC] = useState(false);
+  const [mcProgress, setMcProgress] = useState(0);
   const [mcSearchQuery, setMcSearchQuery] = useState('');
   const [mcSortField, setMcSortField] = useState('winnerProb');
   const [mcSortAsc, setMcSortAsc] = useState(false);
@@ -680,9 +681,10 @@ function App() {
     setBracketSimulated(true);
   };
 
-  // Run Monte Carlo simulation (1,000 runs) stochastically
-  const runMonteCarloSimulation = (runs = 1000) => {
+  // Run Monte Carlo simulation (1,000 runs) stochastically in batches
+  const runMonteCarloSimulation = (totalRuns = 1000) => {
     setIsSimulatingMC(true);
+    setMcProgress(0);
     
     // Let loading screen draw
     setTimeout(() => {
@@ -697,81 +699,97 @@ function App() {
         stats[m.TEAM2] = { TEAM: m.TEAM2, SEED: s2, r32: 0, s16: 0, e8: 0, f4: 0, champ: 0, winner: 0 };
       });
 
-      for (let r = 0; r < runs; r++) {
-        let upsets = 0;
+      let currentRuns = 0;
+      const chunkSize = 100; // run 100 iterations per frame to remain highly responsive but fast
 
-        // Run stochastically with chaosFactor = 1.0 (probabilistic outcomes) to compile correct odds
-        const r64Sim = simulateRound(matchups2026, modelType, modelsData, globalStatsMap, 1.0);
-        r64Sim.results.forEach(res => {
-          stats[res.WINNER].r32 += 1;
-          if (res.WINNER === res.TEAM1 && res.SEED1 > res.SEED2) upsets++;
-          if (res.WINNER === res.TEAM2 && res.SEED2 > res.SEED1) upsets++;
-        });
+      const simulateChunk = () => {
+        const limit = Math.min(currentRuns + chunkSize, totalRuns);
+        for (let r = currentRuns; r < limit; r++) {
+          let upsets = 0;
 
-        const r32Sim = simulateRound(r64Sim.nextMatchups, modelType, modelsData, globalStatsMap, 1.0);
-        r32Sim.results.forEach(res => {
-          stats[res.WINNER].s16 += 1;
-          const s1 = stats[res.TEAM1].SEED;
-          const s2 = stats[res.TEAM2].SEED;
-          if (res.WINNER === res.TEAM1 && s1 > s2) upsets++;
-          if (res.WINNER === res.TEAM2 && s2 > s1) upsets++;
-        });
+          // Run stochastically with chaosFactor = 1.0 (probabilistic outcomes) to compile correct odds
+          const r64Sim = simulateRound(matchups2026, modelType, modelsData, globalStatsMap, 1.0);
+          r64Sim.results.forEach(res => {
+            stats[res.WINNER].r32 += 1;
+            if (res.WINNER === res.TEAM1 && res.SEED1 > res.SEED2) upsets++;
+            if (res.WINNER === res.TEAM2 && res.SEED2 > res.SEED1) upsets++;
+          });
 
-        const s16Sim = simulateRound(r32Sim.nextMatchups, modelType, modelsData, globalStatsMap, 1.0);
-        s16Sim.results.forEach(res => {
-          stats[res.WINNER].e8 += 1;
-          const s1 = stats[res.TEAM1].SEED;
-          const s2 = stats[res.TEAM2].SEED;
-          if (res.WINNER === res.TEAM1 && s1 > s2) upsets++;
-          if (res.WINNER === res.TEAM2 && s2 > s1) upsets++;
-        });
+          const r32Sim = simulateRound(r64Sim.nextMatchups, modelType, modelsData, globalStatsMap, 1.0);
+          r32Sim.results.forEach(res => {
+            stats[res.WINNER].s16 += 1;
+            const s1 = stats[res.TEAM1].SEED;
+            const s2 = stats[res.TEAM2].SEED;
+            if (res.WINNER === res.TEAM1 && s1 > s2) upsets++;
+            if (res.WINNER === res.TEAM2 && s2 > s1) upsets++;
+          });
 
-        const e8Sim = simulateRound(s16Sim.nextMatchups, modelType, modelsData, globalStatsMap, 1.0);
-        e8Sim.results.forEach(res => {
-          stats[res.WINNER].f4 += 1;
-          const s1 = stats[res.TEAM1].SEED;
-          const s2 = stats[res.TEAM2].SEED;
-          if (res.WINNER === res.TEAM1 && s1 > s2) upsets++;
-          if (res.WINNER === res.TEAM2 && s2 > s1) upsets++;
-        });
+          const s16Sim = simulateRound(r32Sim.nextMatchups, modelType, modelsData, globalStatsMap, 1.0);
+          s16Sim.results.forEach(res => {
+            stats[res.WINNER].e8 += 1;
+            const s1 = stats[res.TEAM1].SEED;
+            const s2 = stats[res.TEAM2].SEED;
+            if (res.WINNER === res.TEAM1 && s1 > s2) upsets++;
+            if (res.WINNER === res.TEAM2 && s2 > s1) upsets++;
+          });
 
-        const f4Sim = simulateRound(e8Sim.nextMatchups, modelType, modelsData, globalStatsMap, 1.0);
-        f4Sim.results.forEach(res => {
-          stats[res.WINNER].champ += 1;
-          const s1 = stats[res.TEAM1].SEED;
-          const s2 = stats[res.TEAM2].SEED;
-          if (res.WINNER === res.TEAM1 && s1 > s2) upsets++;
-          if (res.WINNER === res.TEAM2 && s2 > s1) upsets++;
-        });
+          const e8Sim = simulateRound(s16Sim.nextMatchups, modelType, modelsData, globalStatsMap, 1.0);
+          e8Sim.results.forEach(res => {
+            stats[res.WINNER].f4 += 1;
+            const s1 = stats[res.TEAM1].SEED;
+            const s2 = stats[res.TEAM2].SEED;
+            if (res.WINNER === res.WINNER && s1 > s2) upsets++;
+            if (res.WINNER === res.TEAM2 && s2 > s1) upsets++;
+          });
 
-        const champSim = simulateRound(f4Sim.nextMatchups, modelType, modelsData, globalStatsMap, 1.0);
-        champSim.results.forEach(res => {
-          stats[res.WINNER].winner += 1;
-          const s1 = stats[res.TEAM1].SEED;
-          const s2 = stats[res.TEAM2].SEED;
-          if (res.WINNER === res.TEAM1 && s1 > s2) upsets++;
-          if (res.WINNER === res.TEAM2 && s2 > s1) upsets++;
-        });
+          const f4Sim = simulateRound(e8Sim.nextMatchups, modelType, modelsData, globalStatsMap, 1.0);
+          f4Sim.results.forEach(res => {
+            stats[res.WINNER].champ += 1;
+            const s1 = stats[res.TEAM1].SEED;
+            const s2 = stats[res.TEAM2].SEED;
+            if (res.WINNER === res.TEAM1 && s1 > s2) upsets++;
+            if (res.WINNER === res.TEAM2 && s2 > s1) upsets++;
+          });
 
-        totalUpsets += upsets;
-      }
+          const champSim = simulateRound(f4Sim.nextMatchups, modelType, modelsData, globalStatsMap, 1.0);
+          champSim.results.forEach(res => {
+            stats[res.WINNER].winner += 1;
+            const s1 = stats[res.TEAM1].SEED;
+            const s2 = stats[res.TEAM2].SEED;
+            if (res.WINNER === res.TEAM1 && s1 > s2) upsets++;
+            if (res.WINNER === res.TEAM2 && s2 > s1) upsets++;
+          });
 
-      // Convert counts to percentages
-      const resultsArray = Object.values(stats).map(item => ({
-        ...item,
-        r32Prob: item.r32 / runs,
-        s16Prob: item.s16 / runs,
-        e8Prob: item.e8 / runs,
-        f4Prob: item.f4 / runs,
-        champProb: item.champ / runs,
-        winnerProb: item.winner / runs,
-        // Save averages
-        avgUpsets: totalUpsets / runs
-      }));
+          totalUpsets += upsets;
+        }
 
-      setMonteCarloResults(resultsArray);
-      setIsSimulatingMC(false);
-    }, 100);
+        currentRuns = limit;
+        setMcProgress(Math.round((currentRuns / totalRuns) * 100));
+
+        if (currentRuns < totalRuns) {
+          // Defer execution using setTimeout to keep UI responsive
+          setTimeout(simulateChunk, 0);
+        } else {
+          // Convert counts to percentages
+          const resultsArray = Object.values(stats).map(item => ({
+            ...item,
+            r32Prob: item.r32 / totalRuns,
+            s16Prob: item.s16 / totalRuns,
+            e8Prob: item.e8 / totalRuns,
+            f4Prob: item.f4 / totalRuns,
+            champProb: item.champ / totalRuns,
+            winnerProb: item.winner / totalRuns,
+            // Save averages
+            avgUpsets: totalUpsets / totalRuns
+          }));
+
+          setMonteCarloResults(resultsArray);
+          setIsSimulatingMC(false);
+        }
+      };
+
+      simulateChunk();
+    }, 50);
   };
 
   // Open the sidebar editor for a clicked team in the bracket
@@ -1410,6 +1428,13 @@ function App() {
                     Simulate the tournament 1,000 times stochastically to generate round-by-round advancement probabilities for all 64 teams.
                   </p>
                 </div>
+
+                {isSimulatingMC && (
+                  <div style={{ marginTop: '0.5rem', width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div style={{ width: `${mcProgress}%`, height: '100%', background: 'linear-gradient(90deg, var(--color-primary), var(--color-secondary))', transition: 'width 0.1s ease-out' }}></div>
+                  </div>
+                )}
+
                 <button 
                   className="sim-btn" 
                   onClick={() => runMonteCarloSimulation(1000)}
@@ -1418,7 +1443,7 @@ function App() {
                 >
                   {isSimulatingMC ? (
                     <>
-                      <RefreshCw size={16} className="spin-icon" style={{ animation: 'spin 1s linear infinite' }} /> Simulating 1,000 Brackets...
+                      <RefreshCw size={16} className="spin-icon" style={{ animation: 'spin 1s linear infinite' }} /> {mcProgress}% Simulated...
                     </>
                   ) : (
                     <>
