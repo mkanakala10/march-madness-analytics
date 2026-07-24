@@ -1058,3 +1058,117 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-muted);
   margin-top: 0.25rem;
 }
+
+/* Simulation Config Settings Grid */
+.simulation-settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .simulation-settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sim-config-card {
+  padding: 1.5rem !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 140px;
+}
+
+/* Monte Carlo Dashboard Summary Cards */
+.mc-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .mc-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mc-stat-card {
+  padding: 1.25rem !important;
+  text-align: left;
+  border-left: 3px solid var(--color-primary);
+  border-radius: 12px;
+}
+
+.mc-stat-card:nth-child(2) {
+  border-left-color: var(--color-secondary);
+}
+
+.mc-stat-card:nth-child(3) {
+  border-left-color: var(--color-success);
+}
+
+.mc-stat-value {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin: 0.25rem 0;
+  color: var(--text-main);
+}
+
+/* Monte Carlo Advancement Probability Table */
+.mc-table-card {
+  padding: 1.75rem !important;
+  text-align: left;
+}
+
+.mc-table th {
+  user-select: none;
+  transition: var(--transition-fast);
+}
+
+.mc-table th:hover {
+  color: var(--color-primary) !important;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.mc-bar-container {
+  position: relative;
+  width: 100%;
+  height: 1.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding-left: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.mc-bar-fill {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  opacity: 0.15;
+  transition: width var(--transition-normal);
+}
+
+.mc-bar-text {
+  position: relative;
+  z-index: 2;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
