@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, TrendingUp, BarChart2, ShieldAlert, RefreshCw, X, Award, CheckCircle, Target, Cpu, BookOpen } from 'lucide-react';
+import { Play, TrendingUp, BarChart2, ShieldAlert, RefreshCw, X, Award, CheckCircle, Target, Cpu, BookOpen, Eye } from 'lucide-react';
 import { predictMatchup } from './predictor.js';
 
 // Import JSON data directly (handled out-of-the-box by Vite)
@@ -419,6 +419,7 @@ function App() {
   const [monteCarloResults, setMonteCarloResults] = useState(null);
   const [isSimulatingMC, setIsSimulatingMC] = useState(false);
   const [mcProgress, setMcProgress] = useState(0);
+  const [showMcModal, setShowMcModal] = useState(false);
   const [mcSearchQuery, setMcSearchQuery] = useState('');
   const [mcSortField, setMcSortField] = useState('winnerProb');
   const [mcSortAsc, setMcSortAsc] = useState(false);
@@ -785,6 +786,7 @@ function App() {
 
           setMonteCarloResults(resultsArray);
           setIsSimulatingMC(false);
+          setShowMcModal(true);
         }
       };
 
@@ -1423,7 +1425,14 @@ function App() {
 
               <div className="glass-panel sim-config-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
-                  <h3 style={{ fontSize: '1rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>Monte Carlo Bracket Engine</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                    <h3 style={{ fontSize: '1rem', color: 'var(--text-main)' }}>Monte Carlo Bracket Engine</h3>
+                    {monteCarloResults && (
+                      <span className="winner-label" style={{ color: 'var(--color-success)', background: 'rgba(74, 222, 128, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(74, 222, 128, 0.3)', fontSize: '0.65rem' }}>
+                        ✓ 1,000 Runs Ready
+                      </span>
+                    )}
+                  </div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', lineHeight: '1.4' }}>
                     Simulate the tournament 1,000 times stochastically to generate round-by-round advancement probabilities for all 64 teams.
                   </p>
@@ -1435,22 +1444,43 @@ function App() {
                   </div>
                 )}
 
-                <button 
-                  className="sim-btn" 
-                  onClick={() => runMonteCarloSimulation(1000)}
-                  disabled={isSimulatingMC}
-                  style={{ marginTop: '0.75rem', width: '100%', display: 'flex', justifyContent: 'center' }}
-                >
-                  {isSimulatingMC ? (
-                    <>
-                      <RefreshCw size={16} className="spin-icon" style={{ animation: 'spin 1s linear infinite' }} /> {mcProgress}% Simulated...
-                    </>
-                  ) : (
-                    <>
-                      <BarChart2 size={16} /> Run Monte Carlo (1,000 Runs)
-                    </>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
+                  <button 
+                    className="sim-btn" 
+                    onClick={() => runMonteCarloSimulation(1000)}
+                    disabled={isSimulatingMC}
+                    style={{ flex: 1, display: 'flex', justifyContent: 'center' }}
+                  >
+                    {isSimulatingMC ? (
+                      <>
+                        <RefreshCw size={16} className="spin-icon" style={{ animation: 'spin 1s linear infinite' }} /> {mcProgress}% Simulated...
+                      </>
+                    ) : (
+                      <>
+                        <BarChart2 size={16} /> {monteCarloResults ? 'Re-Run (1,000)' : 'Run Monte Carlo (1,000 Runs)'}
+                      </>
+                    )}
+                  </button>
+
+                  {monteCarloResults && (
+                    <button 
+                      className="sim-btn"
+                      onClick={() => setShowMcModal(true)}
+                      title="View generated Monte Carlo simulation results"
+                      style={{ 
+                        background: 'rgba(56, 189, 248, 0.15)', 
+                        borderColor: 'rgba(56, 189, 248, 0.4)',
+                        color: 'var(--color-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <Eye size={16} /> View Results
+                    </button>
                   )}
-                </button>
+                </div>
               </div>
             </div>
 
@@ -1675,143 +1705,37 @@ function App() {
               </div>
             </div>
 
-            {/* Monte Carlo Results Dashboard & Table */}
+            {/* Monte Carlo Summary Card — full results in modal */}
             {monteCarloResults && (
-              <>
-                <div className="mc-dashboard-grid">
-                  <div className="glass-panel mc-stat-card">
-                    <span className="winner-label" style={{ fontSize: '0.7rem' }}>Projected National Champion</span>
-                    <div className="mc-stat-value" style={{ color: 'var(--color-primary)' }}>
-                      {topChamp ? `${topChamp.TEAM} (${(topChamp.winnerProb * 100).toFixed(1)}%)` : 'None'}
-                    </div>
-                    <span className="winner-label" style={{ fontSize: '0.65rem', textTransform: 'none', display: 'block', marginTop: '0.25rem' }}>
-                      Won the simulated tournament the most times.
+              <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', gap: '1.5rem', flexWrap: 'wrap', borderLeft: '3px solid var(--color-success)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <CheckCircle size={22} style={{ color: 'var(--color-success)', flexShrink: 0 }} />
+                  <div>
+                    <span style={{ fontWeight: '700', color: 'var(--text-main)', fontSize: '0.95rem' }}>
+                      Monte Carlo Complete — {topChamp ? topChamp.TEAM : 'N/A'} projected champion at {topChamp ? (topChamp.winnerProb * 100).toFixed(1) : 0}%
                     </span>
-                  </div>
-                  <div className="glass-panel mc-stat-card">
-                    <span className="winner-label" style={{ fontSize: '0.7rem' }}>Cinderella of the Sim</span>
-                    <div className="mc-stat-value" style={{ color: 'var(--color-secondary)' }}>
-                      {darkHorse && darkHorse.s16Prob > 0 ? `${darkHorse.TEAM} (${(darkHorse.s16Prob * 100).toFixed(1)}% S16)` : 'None'}
-                    </div>
-                    <span className="winner-label" style={{ fontSize: '0.65rem', textTransform: 'none', display: 'block', marginTop: '0.25rem' }}>
-                      Highest probability double-digit seed {"(seed >= 10)"} to make the Sweet 16.
-                    </span>
-                  </div>
-                  <div className="glass-panel mc-stat-card">
-                    <span className="winner-label" style={{ fontSize: '0.7rem' }}>Average Upsets per Run</span>
-                    <div className="mc-stat-value" style={{ color: 'var(--color-success)' }}>
-                      {monteCarloResults[0]?.avgUpsets.toFixed(1)} upsets
-                    </div>
-                    <span className="winner-label" style={{ fontSize: '0.65rem', textTransform: 'none', display: 'block', marginTop: '0.25rem' }}>
-                      Standard historical tournament average is ~12.4 upsets.
-                    </span>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.15rem' }}>
+                      1,000 stochastic brackets simulated · {monteCarloResults[0]?.avgUpsets.toFixed(1)} avg upsets per run
+                      {darkHorse && darkHorse.s16Prob > 0 ? ` · Cinderella: ${darkHorse.TEAM} (${(darkHorse.s16Prob * 100).toFixed(1)}% S16)` : ''}
+                    </p>
                   </div>
                 </div>
-
-                <div className="glass-panel mc-table-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
-                    <div>
-                      <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)' }}>Advancement Probability Distribution</h3>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.15rem' }}>
-                        Click any column header to sort teams. Hover or search to inspect details.
-                      </p>
-                    </div>
-                    
-                    <input
-                      type="text"
-                      className="form-select"
-                      style={{ maxWidth: '280px', padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
-                      placeholder="🔍 Search teams..."
-                      value={mcSearchQuery}
-                      onChange={(e) => setMcSearchQuery(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="table-wrapper">
-                    <table className="insights-table mc-table">
-                      <thead>
-                        <tr>
-                          <th onClick={() => { setMcSortField('TEAM'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
-                            Team {mcSortField === 'TEAM' ? (mcSortAsc ? '▲' : '▼') : ''}
-                          </th>
-                          <th onClick={() => { setMcSortField('SEED'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer', textAlign: 'center' }}>
-                            Seed {mcSortField === 'SEED' ? (mcSortAsc ? '▲' : '▼') : ''}
-                          </th>
-                          <th onClick={() => { setMcSortField('r32Prob'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
-                            R32 % {mcSortField === 'r32Prob' ? (mcSortAsc ? '▲' : '▼') : ''}
-                          </th>
-                          <th onClick={() => { setMcSortField('s16Prob'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
-                            S16 % {mcSortField === 's16Prob' ? (mcSortAsc ? '▲' : '▼') : ''}
-                          </th>
-                          <th onClick={() => { setMcSortField('e8Prob'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
-                            E8 % {mcSortField === 'e8Prob' ? (mcSortAsc ? '▲' : '▼') : ''}
-                          </th>
-                          <th onClick={() => { setMcSortField('f4Prob'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
-                            F4 % {mcSortField === 'f4Prob' ? (mcSortAsc ? '▲' : '▼') : ''}
-                          </th>
-                          <th onClick={() => { setMcSortField('champProb'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
-                            Champ % {mcSortField === 'champProb' ? (mcSortAsc ? '▲' : '▼') : ''}
-                          </th>
-                          <th onClick={() => { setMcSortField('winnerProb'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
-                            Champion % {mcSortField === 'winnerProb' ? (mcSortAsc ? '▲' : '▼') : ''}
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sortedMcResults.map(row => (
-                          <tr key={`mc-row-${row.TEAM}`}>
-                            <td style={{ fontWeight: '700', color: 'var(--text-main)' }}>{row.TEAM}</td>
-                            <td style={{ textAlign: 'center', fontWeight: '700', color: 'var(--text-muted)' }}>#{row.SEED}</td>
-                            <td>
-                              <div className="mc-bar-container">
-                                <div className="mc-bar-fill" style={{ width: `${row.r32Prob * 100}%`, backgroundColor: 'var(--color-secondary)' }}></div>
-                                <span className="mc-bar-text">{(row.r32Prob * 100).toFixed(0)}%</span>
-                              </div>
-                            </td>
-                            <td>
-                              <div className="mc-bar-container">
-                                <div className="mc-bar-fill" style={{ width: `${row.s16Prob * 100}%`, backgroundColor: 'var(--color-secondary)' }}></div>
-                                <span className="mc-bar-text">{(row.s16Prob * 100).toFixed(0)}%</span>
-                              </div>
-                            </td>
-                            <td>
-                              <div className="mc-bar-container">
-                                <div className="mc-bar-fill" style={{ width: `${row.e8Prob * 100}%`, backgroundColor: 'var(--color-secondary)' }}></div>
-                                <span className="mc-bar-text">{(row.e8Prob * 100).toFixed(0)}%</span>
-                              </div>
-                            </td>
-                            <td>
-                              <div className="mc-bar-container">
-                                <div className="mc-bar-fill" style={{ width: `${row.f4Prob * 100}%`, backgroundColor: 'var(--color-primary)' }}></div>
-                                <span className="mc-bar-text">{(row.f4Prob * 100).toFixed(0)}%</span>
-                              </div>
-                            </td>
-                            <td>
-                              <div className="mc-bar-container">
-                                <div className="mc-bar-fill" style={{ width: `${row.champProb * 100}%`, backgroundColor: 'var(--color-primary)' }}></div>
-                                <span className="mc-bar-text">{(row.champProb * 100).toFixed(0)}%</span>
-                              </div>
-                            </td>
-                            <td>
-                              <div className="mc-bar-container">
-                                <div className="mc-bar-fill" style={{ width: `${row.winnerProb * 100}%`, backgroundColor: 'var(--color-success)' }}></div>
-                                <span className="mc-bar-text" style={{ fontWeight: '800', color: 'var(--color-success)' }}>{(row.winnerProb * 100).toFixed(1)}%</span>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                        {sortedMcResults.length === 0 && (
-                          <tr>
-                            <td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
-                              No matching teams found in simulation dataset.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </>
+                <button 
+                  className="sim-btn"
+                  onClick={() => setShowMcModal(true)}
+                  style={{ 
+                    background: 'rgba(56, 189, 248, 0.15)', 
+                    borderColor: 'rgba(56, 189, 248, 0.4)',
+                    color: 'var(--color-primary)',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <Eye size={16} /> View Full Results
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -2043,6 +1967,170 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* Monte Carlo Results Pop-up Modal */}
+      {showMcModal && monteCarloResults && (
+        <div className="modal-overlay" onClick={() => setShowMcModal(false)}>
+          <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <h2 style={{ fontSize: '1.4rem', color: 'var(--text-main)', fontFamily: 'var(--font-heading)', margin: 0 }}>
+                    Monte Carlo Simulation Results
+                  </h2>
+                  <span className="winner-label" style={{ color: 'var(--color-success)', background: 'rgba(74, 222, 128, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(74, 222, 128, 0.3)', fontSize: '0.65rem' }}>
+                    ✓ 1,000 Runs Generated
+                  </span>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.2rem' }}>
+                  Stochastic 2026 tournament advancement odds calculated across 1,000 simulated brackets.
+                </p>
+              </div>
+              <button className="close-btn" onClick={() => setShowMcModal(false)} style={{ padding: '0.25rem' }}>
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.25rem' }}>
+              {/* Stat Summary Dashboard Cards */}
+              <div className="mc-dashboard-grid" style={{ marginTop: 0, marginBottom: 0 }}>
+                <div className="glass-panel mc-stat-card">
+                  <span className="winner-label" style={{ fontSize: '0.7rem' }}>Projected National Champion</span>
+                  <div className="mc-stat-value" style={{ color: 'var(--color-primary)' }}>
+                    {topChamp ? `${topChamp.TEAM} (${(topChamp.winnerProb * 100).toFixed(1)}%)` : 'None'}
+                  </div>
+                  <span className="winner-label" style={{ fontSize: '0.65rem', textTransform: 'none', display: 'block', marginTop: '0.25rem' }}>
+                    Won the simulated tournament the most times.
+                  </span>
+                </div>
+                <div className="glass-panel mc-stat-card">
+                  <span className="winner-label" style={{ fontSize: '0.7rem' }}>Cinderella of the Sim</span>
+                  <div className="mc-stat-value" style={{ color: 'var(--color-secondary)' }}>
+                    {darkHorse && darkHorse.s16Prob > 0 ? `${darkHorse.TEAM} (${(darkHorse.s16Prob * 100).toFixed(1)}% S16)` : 'None'}
+                  </div>
+                  <span className="winner-label" style={{ fontSize: '0.65rem', textTransform: 'none', display: 'block', marginTop: '0.25rem' }}>
+                    Highest probability double-digit seed {"(seed >= 10)"} to make the Sweet 16.
+                  </span>
+                </div>
+                <div className="glass-panel mc-stat-card">
+                  <span className="winner-label" style={{ fontSize: '0.7rem' }}>Average Upsets per Run</span>
+                  <div className="mc-stat-value" style={{ color: 'var(--color-success)' }}>
+                    {monteCarloResults[0]?.avgUpsets.toFixed(1)} upsets
+                  </div>
+                  <span className="winner-label" style={{ fontSize: '0.65rem', textTransform: 'none', display: 'block', marginTop: '0.25rem' }}>
+                    Standard historical tournament average is ~12.4 upsets.
+                  </span>
+                </div>
+              </div>
+
+              {/* Advancement Table */}
+              <div className="glass-panel mc-table-card" style={{ padding: '1.25rem', marginTop: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.1rem', color: 'var(--text-main)' }}>Advancement Probability Distribution</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.15rem' }}>
+                      Click any column header to sort teams by advancement odds.
+                    </p>
+                  </div>
+                  
+                  <input
+                    type="text"
+                    className="form-select"
+                    style={{ maxWidth: '240px', padding: '0.4rem 0.65rem', fontSize: '0.8rem' }}
+                    placeholder="🔍 Search teams..."
+                    value={mcSearchQuery}
+                    onChange={(e) => setMcSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                <div className="table-wrapper" style={{ maxHeight: '420px', overflowY: 'auto' }}>
+                  <table className="insights-table mc-table">
+                    <thead>
+                      <tr>
+                        <th onClick={() => { setMcSortField('TEAM'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
+                          Team {mcSortField === 'TEAM' ? (mcSortAsc ? '▲' : '▼') : ''}
+                        </th>
+                        <th onClick={() => { setMcSortField('SEED'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer', textAlign: 'center' }}>
+                          Seed {mcSortField === 'SEED' ? (mcSortAsc ? '▲' : '▼') : ''}
+                        </th>
+                        <th onClick={() => { setMcSortField('r32Prob'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
+                          R32 % {mcSortField === 'r32Prob' ? (mcSortAsc ? '▲' : '▼') : ''}
+                        </th>
+                        <th onClick={() => { setMcSortField('s16Prob'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
+                          S16 % {mcSortField === 's16Prob' ? (mcSortAsc ? '▲' : '▼') : ''}
+                        </th>
+                        <th onClick={() => { setMcSortField('e8Prob'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
+                          E8 % {mcSortField === 'e8Prob' ? (mcSortAsc ? '▲' : '▼') : ''}
+                        </th>
+                        <th onClick={() => { setMcSortField('f4Prob'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
+                          F4 % {mcSortField === 'f4Prob' ? (mcSortAsc ? '▲' : '▼') : ''}
+                        </th>
+                        <th onClick={() => { setMcSortField('champProb'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
+                          Champ % {mcSortField === 'champProb' ? (mcSortAsc ? '▲' : '▼') : ''}
+                        </th>
+                        <th onClick={() => { setMcSortField('winnerProb'); setMcSortAsc(!mcSortAsc); }} style={{ cursor: 'pointer' }}>
+                          Champion % {mcSortField === 'winnerProb' ? (mcSortAsc ? '▲' : '▼') : ''}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedMcResults.map(row => (
+                        <tr key={`mc-modal-row-${row.TEAM}`}>
+                          <td style={{ fontWeight: '700', color: 'var(--text-main)' }}>{row.TEAM}</td>
+                          <td style={{ textAlign: 'center', fontWeight: '700', color: 'var(--text-muted)' }}>#{row.SEED}</td>
+                          <td>
+                            <div className="mc-bar-container">
+                              <div className="mc-bar-fill" style={{ width: `${row.r32Prob * 100}%`, backgroundColor: 'var(--color-secondary)' }}></div>
+                              <span className="mc-bar-text">{(row.r32Prob * 100).toFixed(0)}%</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="mc-bar-container">
+                              <div className="mc-bar-fill" style={{ width: `${row.s16Prob * 100}%`, backgroundColor: 'var(--color-secondary)' }}></div>
+                              <span className="mc-bar-text">{(row.s16Prob * 100).toFixed(0)}%</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="mc-bar-container">
+                              <div className="mc-bar-fill" style={{ width: `${row.e8Prob * 100}%`, backgroundColor: 'var(--color-secondary)' }}></div>
+                              <span className="mc-bar-text">{(row.e8Prob * 100).toFixed(0)}%</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="mc-bar-container">
+                              <div className="mc-bar-fill" style={{ width: `${row.f4Prob * 100}%`, backgroundColor: 'var(--color-primary)' }}></div>
+                              <span className="mc-bar-text">{(row.f4Prob * 100).toFixed(0)}%</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="mc-bar-container">
+                              <div className="mc-bar-fill" style={{ width: `${row.champProb * 100}%`, backgroundColor: 'var(--color-primary)' }}></div>
+                              <span className="mc-bar-text">{(row.champProb * 100).toFixed(0)}%</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="mc-bar-container">
+                              <div className="mc-bar-fill" style={{ width: `${row.winnerProb * 100}%`, backgroundColor: 'var(--color-success)' }}></div>
+                              <span className="mc-bar-text" style={{ fontWeight: '800', color: 'var(--color-success)' }}>{(row.winnerProb * 100).toFixed(1)}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {sortedMcResults.length === 0 && (
+                        <tr>
+                          <td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
+                            No matching teams found in simulation dataset.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
